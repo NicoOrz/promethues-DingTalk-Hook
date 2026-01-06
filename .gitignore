@@ -6,3 +6,4 @@
 /prometheus-dingtalk-hook
 /bin/
 /dist/
+/internal/build/VERSION
