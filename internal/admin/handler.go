@@ -719,20 +719,27 @@ func (h *handler) handleExport(w http.ResponseWriter, r *http.Request, rt *runti
 		return
 	}
 
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	if err := zipWriteFile(zw, "config.yaml", cfgBytes); err != nil {
+		_ = zw.Close()
+		writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
+		return
+	}
+	if err := h.zipTemplates(zw, rt); err != nil {
+		_ = zw.Close()
+		writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
+		return
+	}
+	if err := zw.Close(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="prometheus-dingtalk-hook-export.zip"`)
-	zw := zip.NewWriter(w)
-	defer zw.Close()
-
-	if err := zipWriteFile(zw, "config.yaml", cfgBytes); err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
-		return
-	}
-
-	if err := h.zipTemplates(zw, rt); err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
-		return
-	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buf.Bytes())
 }
 
 func (h *handler) zipTemplates(zw *zip.Writer, rt *runtime.Runtime) error {
@@ -980,7 +987,19 @@ func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Man
 	baseDir := filepath.Dir(configPath)
 	newTemplatesDir := strings.TrimSpace(cfg.Template.Dir)
 
-	oldCfgBytes, _ := os.ReadFile(configPath)
+	oldCfgBytes, err := os.ReadFile(configPath)
+	oldCfgExists := err == nil
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	restoreConfig := func() {
+		if oldCfgExists {
+			_ = writeFileAtomic(configPath, oldCfgBytes, 0o600)
+			return
+		}
+		_ = os.Remove(configPath)
+	}
 
 	if err := os.MkdirAll(filepath.Dir(newTemplatesDir), 0o755); err != nil {
 		return err
@@ -1032,13 +1051,13 @@ func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Man
 	}
 
 	if err := writeFileAtomic(configPath, cfgBytes, 0o600); err != nil {
-		_ = writeFileAtomic(configPath, oldCfgBytes, 0o600)
+		restoreConfig()
 		restoreTemplates()
 		return err
 	}
 
 	if err := reloadMgr.Reload(ctx, true); err != nil {
-		_ = writeFileAtomic(configPath, oldCfgBytes, 0o600)
+		restoreConfig()
 		restoreTemplates()
 		_ = reloadMgr.Reload(ctx, true)
 		return err
