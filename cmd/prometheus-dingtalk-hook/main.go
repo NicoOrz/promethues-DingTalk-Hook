@@ -17,10 +17,19 @@ import (
 	"prometheus-dingtalk-hook/internal/server"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	var configPath string
 	flag.StringVar(&configPath, "config", "config.yaml", "Path to YAML config file")
 	flag.Parse()
+
+	// 输出版本信息
+	fmt.Printf("prometheus-dingtalk-hook %s (commit: %s, built at: %s)\n", version, commit, date)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,

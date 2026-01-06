@@ -1,0 +1,129 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: prometheus-dingtalk-hook
+    main: ./cmd/prometheus-dingtalk-hook
+    binary: prometheus-dingtalk-hook
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - configs/**/*
+      - templates/**/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - 'README'
+      - Merge pull request
+      - Merge branch
+
+dockers:
+  - image_templates:
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}-amd64"
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:latest-amd64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Prometheus Alertmanager webhook receiver for DingTalk"
+      - "--label=org.opencontainers.image.url=https://github.com/nicoorz/promethues-dingtalk-hook"
+      - "--label=org.opencontainers.image.source=https://github.com/nicoorz/promethues-dingtalk-hook"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=Apache-2.0"
+    extra_files:
+      - configs/
+      - templates/
+
+  - image_templates:
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}-arm64"
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:latest-arm64"
+    use: buildx
+    goarch: arm64
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Prometheus Alertmanager webhook receiver for DingTalk"
+      - "--label=org.opencontainers.image.url=https://github.com/nicoorz/promethues-dingtalk-hook"
+      - "--label=org.opencontainers.image.source=https://github.com/nicoorz/promethues-dingtalk-hook"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=Apache-2.0"
+    extra_files:
+      - configs/
+      - templates/
+
+docker_manifests:
+  - name_template: "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}-amd64"
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}-arm64"
+
+  - name_template: "ghcr.io/nicoorz/prometheus-dingtalk-hook:latest"
+    image_templates:
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:latest-amd64"
+      - "ghcr.io/nicoorz/prometheus-dingtalk-hook:latest-arm64"
+
+release:
+  github:
+    owner: NicoOrz
+    name: promethues-DingTalk-Hook
+  draft: false
+  prerelease: auto
+  name_template: "Release {{.Version}}"
