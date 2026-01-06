@@ -37,13 +37,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create VERSION file
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          echo "Creating VERSION file with: $VERSION"
-          mkdir -p internal/build
-          echo "$VERSION" > internal/build/VERSION
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
