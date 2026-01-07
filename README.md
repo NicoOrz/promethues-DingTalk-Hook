@@ -35,6 +35,7 @@ go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
 ```
 
 ### 3) 运行（Docker Compose）
+在项目根目录（已包含 `docker-compose.yml`，并按上文创建好 `config.yaml`）中执行：
 ```bash
 docker compose up -d
 ```
