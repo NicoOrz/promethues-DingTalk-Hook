@@ -55,8 +55,9 @@ archives:
     files:
       - README.md
       - LICENSE
-      - configs/**/*
-      - templates/**/*
+      - docker-compose.yml
+      - configs/*.example.yaml
+      - templates/*.tmpl
 
 checksum:
   name_template: 'checksums.txt'
