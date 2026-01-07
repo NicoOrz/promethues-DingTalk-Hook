@@ -36,8 +36,12 @@ go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
 
 ### 3) 运行（Docker）
 ```bash
+go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
 docker build -t prometheus-dingtalk-hook:local .
-docker run --rm -p 8080:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" prometheus-dingtalk-hook:local -config /app/config.yaml
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.yaml:/app/config.yaml:ro" \
+  -v "$PWD/templates:/app/templates:ro" \
+  prometheus-dingtalk-hook:local
 ```
 
 ## Alertmanager 配置示例

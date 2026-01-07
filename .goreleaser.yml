@@ -92,9 +92,6 @@ dockers:
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.licenses=Apache-2.0"
-    extra_files:
-      - configs/
-      - templates/
 
   - image_templates:
       - "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}-arm64"
@@ -112,9 +109,6 @@ dockers:
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.licenses=Apache-2.0"
-    extra_files:
-      - configs/
-      - templates/
 
 docker_manifests:
   - name_template: "ghcr.io/nicoorz/prometheus-dingtalk-hook:{{ .Version }}"
