@@ -1,68 +1,64 @@
 # Prometheus DingTalk Hook
 
-A lightweight Go webhook service:
+一个轻量的 Go Webhook 服务：
 
-- Receives Prometheus Alertmanager webhook JSON.
-- Renders a message with Go `text/template`.
-- Forwards the message to DingTalk group robots (supports signing and mentions).
+- 接收 Prometheus Alertmanager Webhook（JSON）
+- 使用 Go `text/template` 渲染消息
+- 转发到钉钉群机器人（支持加签与 @）
 
-## Features
+## 功能
 
-- Alertmanager webhook endpoint (default: `POST /alert`)
-- Multiple DingTalk robots
-- Routing: `channels + routes` (match by receiver/status/labels)
-- Mentions: `@all` / `@mobile` / `@userId` (auto appends `@...` tokens in message body)
-- Optional token auth (`Authorization: Bearer <token>` or `X-Token: <token>`)
-- Safe hot reload (`POST /-/reload`, optional polling)
-- Optional Admin UI (`/admin/`) for managing templates and testing messages
+- Alertmanager Webhook 接收（默认：`POST /alert`）
+- 多钉钉机器人配置
+- 路由：`channels + routes`（按 receiver/status/labels 匹配）
+- @：`@all` / `@手机号` / `@userId`（消息末尾自动追加 `@...`）
+- 可选 token 鉴权（`Authorization: Bearer <token>` 或 `X-Token: <token>`）
+- 安全热加载（`POST /-/reload`，可选轮询）
+- 管理 UI：`/admin/`（模板管理/预览、测试发送、配置导入导出）
 
-## Quick Start
+## 快速开始
 
-1) Create config:
+1) 创建配置：
 
 ```bash
 cp config.example.yml config.yml
 ```
 
-2) Edit `config.yml`:
+2) 编辑 `config.yml`：
 
-- Set `dingtalk.robots[0].webhook`.
-- Ensure `dingtalk.channels` contains a channel named `"default"` with at least one robot.
+- 设置 `dingtalk.robots[0].webhook`
+- 确保 `dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
 
-3) Run:
+3) 运行：
 
 ```bash
 go run ./cmd/prometheus-dingtalk-hook -config config.yml
 ```
 
-## Template
+## 模板
 
-The binary ships with an embedded `default` template.
+二进制内置 `default` 模板。
 
-To add or override templates, configure `template.dir` to a directory containing `*.tmpl`.
+自定义模板仅支持 `template.dir`：加载目录下的 `*.tmpl`（模板名为文件名去掉 `.tmpl`）。
 
 ```yaml
 template:
   dir: "templates"
 ```
 
-Notes:
+说明：
 
-- If `template.dir` is empty, the embedded default template is used.
-- If `template.dir` does not exist (e.g. not mounted in Docker), the app falls back to the embedded default template.
-- `channels[].template` selects a template by name (filename without `.tmpl`), e.g. `default` for `default.tmpl`.
+- `template.dir` 留空：使用内置 default 模板
+- `template.dir` 目录不存在（例如 Docker 未挂载）：自动回退使用内置 default 模板
+- `channels[].template` 选择模板名，例如 `default` 对应 `default.tmpl`
 
-## Markdown Title
+## Markdown 标题
 
-For DingTalk `markdown` messages, `dingtalk.robots[].title` controls the `markdown.title` field.
+当机器人 `msg_type: "markdown"` 时，`dingtalk.robots[].title` 对应钉钉 `markdown.title`。
 
-- If `title` is empty, it defaults to Alertmanager `summary`:
-  - `commonAnnotations.summary`, then
-  - the first alert's `annotations.summary`, then
-  - `alertname`, then
-  - `"Alertmanager"`.
+- `title` 留空：默认使用 Alertmanager 的 `summary`（优先 `commonAnnotations.summary`，否则取第一条 alert 的 `annotations.summary`，再回退 `alertname`，最后为 `"Alertmanager"`）
 
-## Alertmanager Receiver Example
+## Alertmanager 配置示例
 
 ```yaml
 receivers:
@@ -74,7 +70,7 @@ receivers:
 
 ## Docker
 
-Example:
+基础示例：
 
 ```bash
 docker run --rm -p 8080:8080 \
@@ -83,7 +79,7 @@ docker run --rm -p 8080:8080 \
   -config /app/config.yml
 ```
 
-Optional templates directory:
+可选：挂载模板目录：
 
 ```bash
 docker run --rm -p 8080:8080 \
@@ -93,16 +89,16 @@ docker run --rm -p 8080:8080 \
   -config /app/config.yml
 ```
 
-And in `config.yml`:
+并在 `config.yml` 中配置：
 
 ```yaml
 template:
   dir: "/data/templates"
 ```
 
-## Admin UI (Optional)
+## 管理 UI（可选）
 
-Enable:
+启用示例：
 
 ```yaml
 admin:
@@ -113,7 +109,7 @@ admin:
     password: "change-me"
 ```
 
-## Security Notes
+## 安全提示
 
-- Never commit `access_token`, `secret`, or `auth.token` to a public repository.
-- Run behind internal networking or enable token auth.
+- 不要在公开仓库中泄露 `access_token`、`secret`、`auth.token`
+- 建议置于内网或启用 token 鉴权

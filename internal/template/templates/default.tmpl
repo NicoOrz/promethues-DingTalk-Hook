@@ -1,20 +1,20 @@
 {{- $p := .Payload -}}
 {{- $status := $p.Status | default "unknown" -}}
 {{ if eq $status "firing" }}
-### 🔥 Alert Firing ({{ .FiringCount }})
+### 🔥 告警触发（{{ .FiringCount }}）
 {{ else if eq $status "resolved" }}
-### ✅ Alert Resolved ({{ .ResolvedCount }})
+### ✅ 告警恢复（{{ .ResolvedCount }}）
 {{ else }}
-### ℹ️ Alert Notification ({{ len $p.Alerts }})
+### ℹ️ 告警通知（{{ len $p.Alerts }}）
 {{ end }}
 
 {{ if eq (len $p.Alerts) 0 }}
 {{- $severity := default (default "unknown" (index $p.CommonLabels "level")) (index $p.CommonLabels "severity") -}}
 {{- $description := default "-" (index $p.CommonAnnotations "description") -}}
 {{- $summary := default "-" (index $p.CommonAnnotations "summary") -}}
-- **Severity**: `{{ $severity }}`
-- **Description**: {{ $description }}
-- **Summary**: {{ $summary }}
+- **严重度**: `{{ $severity }}`
+- **描述**: {{ $description }}
+- **摘要**: {{ $summary }}
 {{ else }}
 {{- range $i, $a := $p.Alerts }}
 {{- if gt $i 0 }}
@@ -25,8 +25,8 @@
 {{- $severity := default (default (default (default "unknown" (index $p.CommonLabels "level")) (index $a.Labels "level")) (index $p.CommonLabels "severity")) (index $a.Labels "severity") -}}
 {{- $description := default (default "-" (index $p.CommonAnnotations "description")) (index $a.Annotations "description") -}}
 {{- $summary := default (default "-" (index $p.CommonAnnotations "summary")) (index $a.Annotations "summary") -}}
-- **Severity**: `{{ $severity }}`
-- **Description**: {{ $description }}
-- **Summary**: {{ $summary }}
+- **严重度**: `{{ $severity }}`
+- **描述**: {{ $description }}
+- **摘要**: {{ $summary }}
 {{- end }}
 {{ end }}

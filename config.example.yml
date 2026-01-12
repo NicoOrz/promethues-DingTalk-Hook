@@ -1,7 +1,7 @@
 server:
-  # HTTP listen address.
+  # HTTP 监听地址。
   listen: "0.0.0.0:8080"
-  # Alertmanager webhook path.
+  # Alertmanager Webhook 路径。
   path: "/alert"
   read_timeout: 5s
   write_timeout: 10s
@@ -9,21 +9,20 @@ server:
   max_body_bytes: 4194304
 
 auth:
-  # Optional shared token authentication.
-  # Supported headers:
+  # 可选的共享 token 鉴权。
+  # 支持的请求头：
   # - Authorization: Bearer <token>
   # - X-Token: <token>
   token: ""
 
 template:
-  # Template directory for loading "*.tmpl".
-  # Leave empty to use the embedded default template.
+  # 模板目录：加载目录下的 "*.tmpl"。
+  # 留空则使用内置 default 模板。
   #
-  # Example (Docker):
+  # Docker 示例：
   #   dir: "/data/templates"
   #
-  # If the directory does not exist (e.g. not mounted in Docker), the app will
-  # fall back to the embedded default template.
+  # 如果目录不存在（例如未挂载），会自动回退使用内置 default 模板。
   dir: ""
 
 admin:
@@ -34,7 +33,7 @@ admin:
     password: "change-me"
 
 reload:
-  # Safe hot reload (atomic switch + rollback on failure).
+  # 安全热加载（原子切换 + 失败回滚）。
   enabled: false
   interval: 2s
 
@@ -43,19 +42,19 @@ dingtalk:
   robots:
     - name: "default"
       webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
-      # Secret for "sign" (optional).
+      # 如果机器人启用了“加签”，填写 secret（可选）。
       secret: ""
       # markdown / text
       msg_type: "markdown"
-      # DingTalk markdown.title
-      # - Leave empty to use Alertmanager "summary".
+      # 钉钉 markdown.title
+      # - 留空：默认使用 Alertmanager 的 summary。
       title: ""
 
-  # channels + routes:
-  # - channels: sending target (robots + template + mention rules)
-  # - routes:   match receiver/status/labels and select channels
+  # channels + routes：
+  # - channels: 发送目标（绑定机器人、模板、@ 规则）
+  # - routes:   按 receiver/status/labels 匹配，决定使用哪些 channels
   channels:
-    - name: "default" # required
+    - name: "default" # 必须存在
       robots: ["default"]
       template: "default"
       mention:
@@ -70,10 +69,9 @@ dingtalk:
           mention:
             at_all: true
 
-  # routes can be empty (then everything goes to the "default" channel).
+  # routes 允许为空（此时所有告警都走 default channel）。
   routes:
     - name: "by-receiver"
       when:
         receiver: ["ops-team"]
       channels: ["default"]
-

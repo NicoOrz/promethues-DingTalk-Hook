@@ -37,24 +37,24 @@
   <body>
     <header>
       <h1>Prometheus DingTalk Hook - Admin</h1>
-      <div class="meta" id="status">Loading...</div>
+      <div class="meta" id="status">加载中...</div>
     </header>
 
     <main>
       <section>
-        <h2>Config (config.yaml)</h2>
+        <h2>配置 (config.yaml)</h2>
         <div class="row" style="margin-bottom:8px">
-          <button id="btnLoadConfig">Load</button>
-          <button id="btnSaveConfig">Save & Reload</button>
-          <button id="btnReload">Reload</button>
-          <button id="btnExport">Export</button>
+          <button id="btnLoadConfig">加载</button>
+          <button id="btnSaveConfig">保存并重载</button>
+          <button id="btnReload">仅重载</button>
+          <button id="btnExport">导出</button>
           <label>
-            Import:
+            导入:
             <input type="file" id="fileImport" accept=".zip" />
           </label>
           <span style="flex:1"></span>
-          <button id="btnCfgModeForm" class="active" title="Form mode (recommended)">Form</button>
-          <button id="btnCfgModeYaml" title="Advanced mode: edit YAML directly">YAML</button>
+          <button id="btnCfgModeForm" class="active" title="表单模式（推荐）">表单</button>
+          <button id="btnCfgModeYaml" title="高级模式：直接编辑 YAML">YAML</button>
         </div>
         <div id="configForm"></div>
         <textarea id="configText" class="hidden" spellcheck="false"></textarea>
@@ -62,17 +62,17 @@
       </section>
 
       <section>
-        <h2>Templates (templates/*.tmpl)</h2>
+        <h2>模板 (templates/*.tmpl)</h2>
         <div class="row" style="margin-bottom:8px">
           <select id="tplSelect"></select>
-          <button id="btnLoadTpl">Load</button>
-          <button id="btnSaveTpl">Save & Reload</button>
+          <button id="btnLoadTpl">加载</button>
+          <button id="btnSaveTpl">保存并重载</button>
         </div>
         <textarea id="tplText" spellcheck="false"></textarea>
         <details style="margin-top:10px">
-          <summary>Variables (click to insert; preview uses the payload below)</summary>
+          <summary>变量库（点击插入；预览基于下方 payload）</summary>
           <div class="row" style="margin:8px 0">
-            <input id="varSearch" placeholder="Search variables/snippets..." style="flex:1" />
+            <input id="varSearch" placeholder="搜索变量/片段..." style="flex:1" />
             <span class="muted" id="varHint"></span>
           </div>
           <div id="varList"></div>
@@ -81,14 +81,14 @@
       </section>
 
       <section class="full">
-        <h2>Preview / Test Send</h2>
+        <h2>预览 / 测试发送</h2>
         <div class="row" style="margin-bottom:8px">
           <label>Channel：<input id="channelName" placeholder="default" /></label>
-          <button id="btnRender">Render Preview</button>
-          <button id="btnSend">Test Send</button>
+          <button id="btnRender">渲染预览</button>
+          <button id="btnSend">测试发送</button>
         </div>
         <div class="row" style="margin-bottom:8px">
-          <label style="flex:1">Example payload (JSON):</label>
+          <label style="flex:1">示例 payload (JSON):</label>
         </div>
         <textarea id="payloadText" spellcheck="false"></textarea>
         <pre id="renderOut"></pre>
@@ -180,7 +180,7 @@
           const d = res.data || {};
           statusEl.textContent = `mode=${d.mode || "-"} | last_reload=${d.reload?.last_success || "-"} ${d.reload?.last_error ? "| err=" + d.reload.last_error : ""}`;
         } catch (e) {
-          statusEl.textContent = `Failed to fetch status: ${e.message}`;
+          statusEl.textContent = `状态获取失败：${e.message}`;
         }
       }
 
@@ -228,7 +228,7 @@
 
       function tryParsePayload() {
         const raw = String(payloadText.value || "").trim();
-        if (!raw) return { ok: false, err: "payload is empty" };
+        if (!raw) return { ok: false, err: "payload 为空" };
         try {
           const parsed = JSON.parse(raw);
           return { ok: true, payload: parsed };
@@ -261,7 +261,7 @@
         const parsed = tryParsePayload();
 
         if (!parsed.ok) {
-          varHint.textContent = `Preview unavailable: ${parsed.err}`;
+          varHint.textContent = `预览不可用：${parsed.err}`;
         } else {
           varHint.textContent = "";
         }
@@ -281,10 +281,10 @@
               <div>
                 <div><strong>${escapeHtml(it.title)}</strong></div>
                 <div><code>${escapeHtml(it.snippet)}</code></div>
-                ${pv ? `<div class="muted" style="margin-top:6px">Preview: ${escapeHtml(pv)}</div>` : ``}
+                ${pv ? `<div class="muted" style="margin-top:6px">预览：${escapeHtml(pv)}</div>` : ``}
               </div>
               <div class="row">
-                <button data-action="insertVar" data-var-index="${index}">Insert</button>
+                <button data-action="insertVar" data-var-index="${index}">插入</button>
               </div>
             </div>`;
           })
@@ -338,7 +338,7 @@
 
       function renderConfigForm() {
         if (!cfg) {
-          configForm.innerHTML = `<div class="muted">Config not loaded.</div>`;
+          configForm.innerHTML = `<div class="muted">未加载配置。</div>`;
           return;
         }
 
@@ -362,7 +362,7 @@
         const adminSaltSet = !!(sens.admin_salt_set ?? sens.AdminSaltSet);
 
         const robotNames = robots.map((r) => String(r?.Name || "")).filter(Boolean);
-        const templateNameOptions = ["", ...templateNames].map((name) => `<option value="${e(name)}">${name ? e(name) : "(default)"}</option>`).join("");
+        const templateNameOptions = ["", ...templateNames].map((name) => `<option value="${e(name)}">${name ? e(name) : "(默认)"}</option>`).join("");
 
         const renderNameCheckboxes = (listPath, selected) => {
           return robotNames
@@ -398,7 +398,7 @@
               return `<div class="grid" style="grid-template-columns: 1fr 2fr auto; align-items:end">
                 <label>key<input value="${e(k)}" data-label-key="${e(labelsPath)}" data-label-oldkey="${e(k)}" /></label>
                 <label>values<input value="${e(joinList(values))}" data-label-values="${e(labelsPath)}" data-label-keyname="${e(k)}" placeholder="a, b, c" /></label>
-                <button data-action="removeLabel" data-path="${e(labelsPath)}" data-key="${e(k)}">Remove</button>
+                <button data-action="removeLabel" data-path="${e(labelsPath)}" data-key="${e(k)}">删除</button>
               </div>`;
             })
             .join("");
@@ -408,7 +408,7 @@
               <span style="flex:1"></span>
               <button data-action="addLabel" data-path="${e(labelsPath)}">+ label</button>
             </div>
-            ${rows || `<div class="muted">No labels</div>`}
+            ${rows || `<div class="muted">无 labels</div>`}
           </div>`;
         };
 
@@ -449,31 +449,31 @@
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">robot #${i + 1}${name ? "："+e(name) : ""}</div>
                 <span style="flex:1"></span>
-                <button data-action="removeRobot" data-index="${i}">Remove</button>
+                <button data-action="removeRobot" data-index="${i}">删除</button>
               </div>
               <div class="grid">
                 <label>name<input value="${e(r?.Name)}" data-bind="DingTalk.Robots.${i}.Name" /></label>
                 <label>webhook
-                  <input id="robot_${i}_webhook" type="password" value="${e(r?.Webhook)}" data-bind="DingTalk.Robots.${i}.Webhook" placeholder="${webhookSet ? "(set; leave empty to keep)" : ""}" />
+                  <input id="robot_${i}_webhook" type="password" value="${e(r?.Webhook)}" data-bind="DingTalk.Robots.${i}.Webhook" placeholder="${webhookSet ? "(已设置，留空=不改)" : ""}" />
                   <div class="row">
                     <label style="flex-direction:row;align-items:center;gap:6px">
-                      <input type="checkbox" data-toggle-pass="robot_${i}_webhook" />Show
+                      <input type="checkbox" data-toggle-pass="robot_${i}_webhook" />显示
                     </label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
                       <input type="checkbox" data-clear-robot="${e(name)}" data-clear-field="webhook" ${clear.webhook ? "checked" : ""} ${webhookSet ? "" : "disabled"} />
-                      Clear
+                      清空
                     </label>
                   </div>
                 </label>
                 <label>secret
-                  <input id="robot_${i}_secret" type="password" value="${e(r?.Secret)}" data-bind="DingTalk.Robots.${i}.Secret" placeholder="${secretSet ? "(set; leave empty to keep)" : ""}" />
+                  <input id="robot_${i}_secret" type="password" value="${e(r?.Secret)}" data-bind="DingTalk.Robots.${i}.Secret" placeholder="${secretSet ? "(已设置，留空=不改)" : ""}" />
                   <div class="row">
                     <label style="flex-direction:row;align-items:center;gap:6px">
-                      <input type="checkbox" data-toggle-pass="robot_${i}_secret" />Show
+                      <input type="checkbox" data-toggle-pass="robot_${i}_secret" />显示
                     </label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
                       <input type="checkbox" data-clear-robot="${e(name)}" data-clear-field="secret" ${clear.secret ? "checked" : ""} ${secretSet ? "" : "disabled"} />
-                      Clear
+                      清空
                     </label>
                   </div>
                 </label>
@@ -495,7 +495,7 @@
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">channel #${i + 1}${ch?.Name ? "："+e(ch.Name) : ""}</div>
                 <span style="flex:1"></span>
-                <button data-action="removeChannel" data-index="${i}">Remove</button>
+                <button data-action="removeChannel" data-index="${i}">删除</button>
               </div>
               <div class="grid">
                 <label>name<input value="${e(ch?.Name)}" data-bind="DingTalk.Channels.${i}.Name" /></label>
@@ -520,7 +520,7 @@
                       <div class="row" style="margin-bottom:8px">
                         <div style="font-weight:600">rule #${ri + 1}${rule?.Name ? "："+e(rule.Name) : ""}</div>
                         <span style="flex:1"></span>
-                        <button data-action="removeMentionRule" data-channel-index="${i}" data-rule-index="${ri}">Remove</button>
+                        <button data-action="removeMentionRule" data-channel-index="${i}" data-rule-index="${ri}">删除</button>
                       </div>
                       <div class="grid">
                         <label>name<input value="${e(rule?.Name)}" data-bind="DingTalk.Channels.${i}.MentionRules.${ri}.Name" /></label>
@@ -529,7 +529,7 @@
                       ${renderMentionEditor(`DingTalk.Channels.${i}.MentionRules.${ri}.Mention`, rule?.Mention)}
                     </div>`;
                   })
-                  .join("") || `<div class="muted">No rules</div>`}
+                  .join("") || `<div class="muted">无规则</div>`}
               </div>
             </div>`;
           })
@@ -541,7 +541,7 @@
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">route #${i + 1}${route?.Name ? "："+e(route.Name) : ""}</div>
                 <span style="flex:1"></span>
-                <button data-action="removeRoute" data-index="${i}">Remove</button>
+                <button data-action="removeRoute" data-index="${i}">删除</button>
               </div>
               <div class="grid">
                 <label>name<input value="${e(route?.Name)}" data-bind="DingTalk.Routes.${i}.Name" /></label>
@@ -558,7 +558,7 @@
         const adminAuthMode = adminShaSet ? "sha256" : "password";
 
         configForm.innerHTML = `
-          <div class="muted" style="margin-bottom:10px">Form mode rewrites config.yaml (comments/order may be lost). Sensitive fields are hidden by default; leaving them empty keeps the existing value.</div>
+          <div class="muted" style="margin-bottom:10px">表单模式会重写 config.yaml（可能丢失注释/顺序）；敏感字段默认不回显，留空表示不修改旧值。</div>
 
           <details open>
             <summary>Server</summary>
@@ -576,12 +576,12 @@
             <summary>Auth</summary>
             <div class="grid" style="margin-top:10px">
               <label>token
-                <input id="auth_token" type="password" value="${e(auth.Token)}" data-bind="Auth.Token" placeholder="${authTokenSet ? "(set; leave empty to keep)" : ""}" />
+                <input id="auth_token" type="password" value="${e(auth.Token)}" data-bind="Auth.Token" placeholder="${authTokenSet ? "(已设置，留空=不改)" : ""}" />
                 <div class="row">
-                  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="auth_token" />Show</label>
+                  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="auth_token" />显示</label>
                   <label style="flex-direction:row;align-items:center;gap:6px">
                     <input type="checkbox" data-clear="auth_token" ${cfgClear.auth_token ? "checked" : ""} ${authTokenSet ? "" : "disabled"} />
-                    Clear
+                    清空
                   </label>
                 </div>
               </label>
@@ -609,41 +609,41 @@
             <div class="card">
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">basic_auth</div>
-                <span class="muted">(password and password_sha256 are mutually exclusive)</span>
+                <span class="muted">（password 与 password_sha256 互斥）</span>
               </div>
               <div class="grid">
                 <label>password
-                  <input id="admin_pwd" type="password" value="${e(basic.Password)}" data-bind="Admin.BasicAuth.Password" placeholder="${adminPwdSet ? "(set; leave empty to keep)" : ""}" />
+                  <input id="admin_pwd" type="password" value="${e(basic.Password)}" data-bind="Admin.BasicAuth.Password" placeholder="${adminPwdSet ? "(已设置，留空=不改)" : ""}" />
                   <div class="row">
-                    <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_pwd" />Show</label>
+                    <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_pwd" />显示</label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
                       <input type="checkbox" data-clear="admin_password" ${cfgClear.admin_password ? "checked" : ""} ${adminPwdSet ? "" : "disabled"} />
-                      Clear
+                      清空
                     </label>
                   </div>
                 </label>
                 <label>password_sha256
-                  <input id="admin_sha" type="password" value="${e(basic.PasswordSHA256)}" data-bind="Admin.BasicAuth.PasswordSHA256" placeholder="${adminShaSet ? "(set; leave empty to keep)" : ""}" />
+                  <input id="admin_sha" type="password" value="${e(basic.PasswordSHA256)}" data-bind="Admin.BasicAuth.PasswordSHA256" placeholder="${adminShaSet ? "(已设置，留空=不改)" : ""}" />
                   <div class="row">
-                    <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_sha" />Show</label>
+                    <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_sha" />显示</label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
                       <input type="checkbox" data-clear="admin_password_sha256" ${cfgClear.admin_password_sha256 ? "checked" : ""} ${adminShaSet ? "" : "disabled"} />
-                      Clear
+                      清空
                     </label>
                   </div>
                 </label>
                 <label>salt (base64)
-                  <input id="admin_salt" type="password" value="${e(basic.Salt)}" data-bind="Admin.BasicAuth.Salt" placeholder="${adminSaltSet ? "(set; leave empty to keep)" : ""}" />
+                  <input id="admin_salt" type="password" value="${e(basic.Salt)}" data-bind="Admin.BasicAuth.Salt" placeholder="${adminSaltSet ? "(已设置，留空=不改)" : ""}" />
                   <div class="row">
-                    <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_salt" />Show</label>
+                    <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_salt" />显示</label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
                       <input type="checkbox" data-clear="admin_salt" ${cfgClear.admin_salt ? "checked" : ""} ${adminSaltSet ? "" : "disabled"} />
-                      Clear
+                      清空
                     </label>
                   </div>
                 </label>
               </div>
-              <div class="muted">Tip: when switching auth mode, consider clearing the other mode first, then set the new value.</div>
+              <div class="muted">提示：切换认证方式时，建议先勾选“清空”另一种方式再填写新值。</div>
             </div>
           </details>
 
@@ -670,7 +670,7 @@
                 <span style="flex:1"></span>
                 <button data-action="addRobot">+ robot</button>
               </div>
-              ${robotsHTML || `<div class="muted">No robots (server validation requires at least 1)</div>`}
+              ${robotsHTML || `<div class="muted">无 robots（但后端校验要求至少 1 个）</div>`}
             </div>
 
             <div class="card">
@@ -679,7 +679,7 @@
                 <span style="flex:1"></span>
                 <button data-action="addChannel">+ channel</button>
               </div>
-              ${channelsHTML || `<div class="muted">No channels (must include "default")</div>`}
+              ${channelsHTML || `<div class="muted">无 channels（channels 模式要求包含 default）</div>`}
             </div>
 
             <div class="card">
@@ -688,7 +688,7 @@
                 <span style="flex:1"></span>
                 <button data-action="addRoute">+ route</button>
               </div>
-              ${routesHTML || `<div class="muted">No routes (allowed to be empty)</div>`}
+              ${routesHTML || `<div class="muted">无 routes（允许为空）</div>`}
             </div>
           </details>
         `;
@@ -740,7 +740,7 @@
               body: JSON.stringify({ config: cfg, clear_sensitive: cfgClear })
             });
           }
-          configMsg.textContent = "Saved and reloaded.";
+          configMsg.textContent = "已保存并重载。";
           await refreshStatus();
           await loadTemplates();
           await loadConfig();
@@ -753,7 +753,7 @@
         configMsg.textContent = "";
         try {
           await api("./api/v1/reload", { method: "POST" });
-          configMsg.textContent = "Reloaded.";
+          configMsg.textContent = "已重载。";
           await refreshStatus();
           await loadTemplates();
           await loadConfig();
@@ -778,7 +778,7 @@
         try {
           const name = tplSelect.value;
           await api(`./api/v1/templates/${encodeURIComponent(name)}`, { method: "PUT", body: tplText.value, headers: { "content-type": "text/plain" } });
-          tplMsg.textContent = "Saved and reloaded.";
+          tplMsg.textContent = "已保存并重载。";
           await refreshStatus();
         } catch (e) {
           tplMsg.textContent = e.message;
@@ -816,7 +816,7 @@
         try {
           const payload = JSON.parse(payloadText.value || "{}");
           await api("./api/v1/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ channel: channelName.value, payload }) });
-          renderOut.textContent = "Sent successfully.";
+          renderOut.textContent = "发送成功。";
         } catch (e) {
           renderOut.textContent = e.message;
         }
@@ -848,7 +848,7 @@
         try {
           const body = await f.arrayBuffer();
           await api("./api/v1/import", { method: "POST", headers: { "content-type": "application/zip" }, body });
-          configMsg.textContent = "Imported successfully (reloaded).";
+          configMsg.textContent = "导入成功（已重载）。";
           await refreshStatus();
           await loadTemplates();
           await loadConfig();
@@ -995,10 +995,10 @@
         if (act === "addLabel") {
           const labelsPath = btn.dataset.path;
           const labels = getByPath(cfg, labelsPath) || {};
-          const key = prompt("label key (e.g. severity)");
+          const key = prompt("label key（如 severity）");
           if (!key) return;
           if (labels[key]) {
-            alert("label already exists");
+            alert("label 已存在");
             return;
           }
           labels[key] = [];
@@ -1027,7 +1027,7 @@
           if (!labelsPath || !oldKey || !newKey || oldKey === newKey) return;
           const labels = getByPath(cfg, labelsPath) || {};
           if (labels[newKey] && newKey !== oldKey) {
-            alert("label key already exists");
+            alert("label key 已存在");
             t.value = oldKey;
             return;
           }

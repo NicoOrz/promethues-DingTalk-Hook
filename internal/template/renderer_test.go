@@ -32,16 +32,16 @@ func TestRender_DefaultTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if !strings.Contains(out, "### 🔥 Alert Firing (1)") {
+	if !strings.Contains(out, "### 🔥 告警触发（1）") {
 		t.Fatalf("unexpected output: %q", out)
 	}
-	if !strings.Contains(out, "- **Severity**:") {
+	if !strings.Contains(out, "- **严重度**:") {
 		t.Fatalf("unexpected output: %q", out)
 	}
-	if !strings.Contains(out, "- **Summary**: cpu too high") {
+	if !strings.Contains(out, "- **摘要**: cpu too high") {
 		t.Fatalf("unexpected output: %q", out)
 	}
-	if !strings.Contains(out, "- **Description**: -") {
+	if !strings.Contains(out, "- **描述**: -") {
 		t.Fatalf("unexpected output: %q", out)
 	}
 }
