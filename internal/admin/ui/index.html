@@ -318,29 +318,21 @@
         return cur;
       }
 
-      function ensureDefaultChannelAndReceiver() {
+      function ensureDefaultChannel() {
         if (!cfg?.DingTalk) return;
         const robots = cfg.DingTalk.Robots || [];
         const firstRobot = robots.find((r) => String(r?.Name || "").trim())?.Name || "";
 
-        const hasChannels = (cfg.DingTalk.Channels || []).length > 0;
-        if (hasChannels) {
-          const names = new Set((cfg.DingTalk.Channels || []).map((c) => c?.Name));
-          if (!names.has("default")) {
-            cfg.DingTalk.Channels.unshift({
-              Name: "default",
-              Robots: firstRobot ? [firstRobot] : [],
-              Template: cfg.Template?.Default || "default",
-              Mention: { AtAll: false, AtMobiles: [], AtUserIds: [] },
-              MentionRules: []
-            });
-          }
-          return;
-        }
-
-        cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-        if (!cfg.DingTalk.Receivers.default) {
-          cfg.DingTalk.Receivers.default = firstRobot ? [firstRobot] : [];
+        cfg.DingTalk.Channels = cfg.DingTalk.Channels || [];
+        const names = new Set((cfg.DingTalk.Channels || []).map((c) => c?.Name));
+        if (!names.has("default")) {
+          cfg.DingTalk.Channels.unshift({
+            Name: "default",
+            Robots: firstRobot ? [firstRobot] : [],
+            Template: cfg.Template?.Default || "default",
+            Mention: { AtAll: false, AtMobiles: [], AtUserIds: [] },
+            MentionRules: []
+          });
         }
       }
 
@@ -361,7 +353,6 @@
         const robots = dt.Robots || [];
         const channels = dt.Channels || [];
         const routes = dt.Routes || [];
-        const receivers = dt.Receivers || {};
 
         const sens = cfgSensitive || {};
         const sensRobots = sens.robots || sens.Robots || {};
@@ -369,8 +360,6 @@
         const adminPwdSet = !!(sens.admin_password_set ?? sens.AdminPasswordSet);
         const adminShaSet = !!(sens.admin_password_sha256_set ?? sens.AdminPasswordSHA256Set);
         const adminSaltSet = !!(sens.admin_salt_set ?? sens.AdminSaltSet);
-
-        const hasChannelsMode = channels.length > 0;
 
         const robotNames = robots.map((r) => String(r?.Name || "")).filter(Boolean);
         const templateNameOptions = ["", ...templateNames].map((name) => `<option value="${e(name)}">${name ? e(name) : "(默认)"}</option>`).join("");
@@ -495,26 +484,6 @@
                   </select>
                 </label>
                 <label>title<input value="${e(r?.Title)}" data-bind="DingTalk.Robots.${i}.Title" /></label>
-              </div>
-            </div>`;
-          })
-          .join("");
-
-        const receiversKeys = Object.keys(receivers || {}).sort();
-        const receiversHTML = receiversKeys
-          .map((receiver) => {
-            const selected = receivers[receiver] || [];
-            return `<div class="card">
-              <div class="row" style="margin-bottom:8px">
-                <div style="font-weight:600">receiver：${e(receiver)}</div>
-                <span style="flex:1"></span>
-                <button data-action="removeReceiver" data-receiver="${e(receiver)}">删除</button>
-              </div>
-              <div class="grid">
-                <div>
-                  <div class="muted" style="margin-bottom:6px">robots</div>
-                  <div class="row">${renderNameCheckboxes(`DingTalk.Receivers.${receiver}`, selected)}</div>
-                </div>
               </div>
             </div>`;
           })
@@ -695,10 +664,6 @@
             <summary>DingTalk</summary>
             <div class="grid" style="margin-top:10px">
               <label>timeout<input value="${e(dt.Timeout)}" data-bind="DingTalk.Timeout" placeholder="5s" /></label>
-              <label style="flex-direction:row;align-items:center;gap:6px">
-                <input type="checkbox" data-action="toggleRoutingMode" ${hasChannelsMode ? "checked" : ""} />
-                <span>使用 channels/routes（推荐）</span>
-              </label>
             </div>
 
             <div class="card">
@@ -710,16 +675,7 @@
               ${robotsHTML || `<div class="muted">无 robots（但后端校验要求至少 1 个）</div>`}
             </div>
 
-            <div class="card ${hasChannelsMode ? "hidden" : ""}">
-              <div class="row" style="margin-bottom:8px">
-                <div style="font-weight:600">receivers（legacy）</div>
-                <span style="flex:1"></span>
-                <button data-action="addReceiver">+ receiver</button>
-              </div>
-              ${receiversHTML || `<div class="muted">无 receivers（legacy 模式要求包含 default）</div>`}
-            </div>
-
-            <div class="card ${hasChannelsMode ? "" : "hidden"}">
+            <div class="card">
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">channels</div>
                 <span style="flex:1"></span>
@@ -728,7 +684,7 @@
               ${channelsHTML || `<div class="muted">无 channels（channels 模式要求包含 default）</div>`}
             </div>
 
-            <div class="card ${hasChannelsMode ? "" : "hidden"}">
+            <div class="card">
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">routes</div>
                 <span style="flex:1"></span>
@@ -764,7 +720,7 @@
           cfgSensitive = jsonRes.data?.sensitive || null;
           cfgClear = { auth_token: false, admin_password: false, admin_password_sha256: false, admin_salt: false, robots: {} };
           configText.value = yamlText || "";
-          ensureDefaultChannelAndReceiver();
+          ensureDefaultChannel();
           renderConfigForm();
         } catch (e) {
           configMsg.textContent = e.message;
@@ -966,37 +922,6 @@
             return;
           }
         }
-        if (!(t instanceof HTMLInputElement)) return;
-        if (t.dataset?.action === "toggleRoutingMode") {
-          const enable = t.checked;
-          cfg.DingTalk = cfg.DingTalk || {};
-          if (enable) {
-            cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-            cfg.DingTalk.Channels = cfg.DingTalk.Channels || [];
-            cfg.DingTalk.Routes = cfg.DingTalk.Routes || [];
-            if (cfg.DingTalk.Channels.length === 0) {
-              const robots = cfg.DingTalk.Robots || [];
-              const firstRobot = robots.find((r) => String(r?.Name || "").trim())?.Name || "";
-              cfg.DingTalk.Channels.push({
-                Name: "default",
-                Robots: firstRobot ? [firstRobot] : [],
-                Template: cfg.Template?.Default || "default",
-                Mention: { AtAll: false, AtMobiles: [], AtUserIds: [] },
-                MentionRules: []
-              });
-            }
-          } else {
-            cfg.DingTalk.Channels = [];
-            cfg.DingTalk.Routes = [];
-            cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-            if (!cfg.DingTalk.Receivers.default) {
-              const robots = cfg.DingTalk.Robots || [];
-              const firstRobot = robots.find((r) => String(r?.Name || "").trim())?.Name || "";
-              cfg.DingTalk.Receivers.default = firstRobot ? [firstRobot] : [];
-            }
-          }
-          renderConfigForm();
-        }
       });
 
       configForm.addEventListener("click", (ev) => {
@@ -1017,26 +942,6 @@
         if (act === "removeRobot") {
           const idx = Number(btn.dataset.index);
           cfg.DingTalk.Robots.splice(idx, 1);
-          renderConfigForm();
-          return;
-        }
-
-        if (act === "addReceiver") {
-          const name = prompt("receiver 名称（如 ops-team）");
-          if (!name) return;
-          cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-          if (cfg.DingTalk.Receivers[name]) {
-            alert("receiver 已存在");
-            return;
-          }
-          cfg.DingTalk.Receivers[name] = [];
-          renderConfigForm();
-          return;
-        }
-        if (act === "removeReceiver") {
-          const name = btn.dataset.receiver;
-          if (!name) return;
-          delete cfg.DingTalk.Receivers[name];
           renderConfigForm();
           return;
         }
