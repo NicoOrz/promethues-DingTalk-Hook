@@ -15,12 +15,54 @@ BIN_DST="/usr/share/bin/${BIN}"
 need() { command -v "$1" >/dev/null 2>&1 || { echo "错误: 缺少命令 $1" >&2; exit 1; }; }
 as_root() { [ "$(id -u)" -eq 0 ] && "$@" || sudo "$@"; }
 
+uninstall() {
+  if ! command -v systemctl >/dev/null 2>&1 || [ ! -d /run/systemd/system ]; then
+    echo "错误: 当前系统不是 systemd 驱动，无法卸载 systemd 服务。" >&2
+    exit 1
+  fi
+
+  if [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
+    echo "错误: 需要 root 权限（请用 root 运行或安装 sudo）。" >&2
+    exit 1
+  fi
+
+  UNIT="/etc/systemd/system/${SERVICE}.service"
+
+  if systemctl list-unit-files | awk '{print $1}' | grep -qx "${SERVICE}.service"; then
+    as_root systemctl disable --now "${SERVICE}.service" >/dev/null 2>&1 || true
+  else
+    as_root systemctl stop "${SERVICE}.service" >/dev/null 2>&1 || true
+  fi
+
+  as_root rm -f "$UNIT"
+  as_root systemctl daemon-reload
+
+  as_root rm -f "$BIN_DST"
+
+  if [ "${PURGE:-0}" = "1" ]; then
+    as_root rm -rf "$ETC_DIR"
+    echo "已清理配置目录: ${ETC_DIR}"
+  else
+    echo "已保留配置目录: ${ETC_DIR}（如需一并删除请加 PURGE=1）"
+  fi
+
+  echo "✅ 卸载完成"
+  exit 0
+}
+
 need curl
 need tar
 need uname
 need mktemp
 need grep
 need awk
+
+cmd="${1:-install}"
+case "$cmd" in
+  install) ;;
+  uninstall) uninstall ;;
+  *) echo "用法: $0 [install|uninstall]" >&2; exit 2 ;;
+esac
 
 if ! command -v systemctl >/dev/null 2>&1 || [ ! -d /run/systemd/system ]; then
   echo "错误: 当前系统不是 systemd 驱动，无法安装为 systemd 服务。" >&2
@@ -100,4 +142,3 @@ echo "2) 重启服务：systemctl restart ${SERVICE}"
 echo "3) 查看日志：journalctl -u ${SERVICE} -f"
 echo ""
 echo "模板目录：${TPL_DST_DIR}（可放置 *.tmpl，config 中 template.dir 可按需填写）"
-

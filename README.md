@@ -108,9 +108,21 @@ curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/un
 ```
 
 安装完成后会提示你：
-- 配置文件路径（默认：`/etc/prometheus-dingtalk-hook/config.yml`）
+- 配置文件路径（默认：`/etc/promethues-DingTalk-Hook/config.yml`）
 - 服务名（默认：`prometheus-dingtalk-hook.service`）
 - 常用命令（重启/日志）
+
+卸载（默认保留 `/etc/promethues-DingTalk-Hook/` 配置目录）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/unstable/install.sh | sh -s uninstall
+```
+
+彻底卸载（包含配置目录）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/unstable/install.sh | PURGE=1 sh -s uninstall
+```
 
 ## 管理 UI（可选）
 
