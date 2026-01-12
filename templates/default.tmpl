@@ -1,48 +1,32 @@
 {{- $p := .Payload -}}
 {{- $status := $p.Status | default "unknown" -}}
-{{- if eq $status "firing" -}}
-### 🔥 告警触发（{{ .FiringCount }}）
-{{- else if eq $status "resolved" -}}
-### ✅ 告警恢复（{{ .ResolvedCount }}）
-{{- else -}}
-### ℹ️ 告警通知（{{ len $p.Alerts }}）
-{{- end }}
+{{ if eq $status "firing" }}
+### 🔥 Alert Firing ({{ .FiringCount }})
+{{ else if eq $status "resolved" }}
+### ✅ Alert Resolved ({{ .ResolvedCount }})
+{{ else }}
+### ℹ️ Alert Notification ({{ len $p.Alerts }})
+{{ end }}
 
-- Receiver: `{{ $p.Receiver | default "unknown" }}`
-- Status: `{{ $p.Status | default "unknown" }}`
-{{- if $p.ExternalURL }}
-- Alertmanager: {{ $p.ExternalURL }}
-{{- end }}
-
-{{- if $p.GroupLabels }}
-- GroupLabels: `{{ kv $p.GroupLabels }}`
-{{- end }}
-{{- if $p.CommonLabels }}
-- CommonLabels: `{{ kv $p.CommonLabels }}`
-{{- end }}
-
+{{ if eq (len $p.Alerts) 0 }}
+{{- $severity := default (default "unknown" (index $p.CommonLabels "level")) (index $p.CommonLabels "severity") -}}
+{{- $description := default "-" (index $p.CommonAnnotations "description") -}}
+{{- $summary := default "-" (index $p.CommonAnnotations "summary") -}}
+- **Severity**: `{{ $severity }}`
+- **Description**: {{ $description }}
+- **Summary**: {{ $summary }}
+{{ else }}
 {{- range $i, $a := $p.Alerts }}
+{{- if gt $i 0 }}
 
 ---
-**{{ index $a.Labels "alertname" | default "alert" }}** (`{{ $a.Status | default "unknown" }}`)
 
-{{- $summary := index $a.Annotations "summary" | default "" -}}
-{{- if $summary }}
-> {{ $summary }}
 {{- end }}
-
-{{- $description := index $a.Annotations "description" | default "" -}}
-{{- if $description }}
-> {{ $description }}
+{{- $severity := default (default (default (default "unknown" (index $p.CommonLabels "level")) (index $a.Labels "level")) (index $p.CommonLabels "severity")) (index $a.Labels "severity") -}}
+{{- $description := default (default "-" (index $p.CommonAnnotations "description")) (index $a.Annotations "description") -}}
+{{- $summary := default (default "-" (index $p.CommonAnnotations "summary")) (index $a.Annotations "summary") -}}
+- **Severity**: `{{ $severity }}`
+- **Description**: {{ $description }}
+- **Summary**: {{ $summary }}
 {{- end }}
-
-{{- if $a.Labels }}
-- Labels: `{{ kv $a.Labels }}`
-{{- end }}
-{{- if $a.Annotations }}
-- Annotations: `{{ kv $a.Annotations }}`
-{{- end }}
-{{- if $a.GeneratorURL }}
-- GeneratorURL: {{ $a.GeneratorURL }}
-{{- end }}
-{{- end }}
+{{ end }}
