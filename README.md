@@ -98,7 +98,10 @@ template:
 
 ## 一键安装（Linux + systemd）
 
-将自动下载最新 Release 的二进制，安装并注册为 systemd 服务：
+将自动下载最新 Release，解压后：
+- 二进制安装到 `/usr/share/bin/prometheus-dingtalk-hook`
+- 配置与模板安装到 `/etc/promethues-DingTalk-Hook/`
+- 注册并启动 systemd 服务 `prometheus-dingtalk-hook.service`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/unstable/install.sh | sh
