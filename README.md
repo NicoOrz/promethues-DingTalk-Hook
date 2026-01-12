@@ -5,7 +5,7 @@
 ## 功能
 - 接收 Alertmanager Webhook（/alert）
 - 多钉钉机器人配置
-- 路由：支持 legacy `receiver` 路由，也支持 `channels + routes`（按 receiver/labels 匹配）
+- 路由：`channels + routes`（按 receiver/labels 匹配）
 - 支持钉钉 `@全体/@手机号`（按渠道默认规则 + 规则匹配）
 - 支持钉钉“加签”安全设置（secret）
 - 支持 Go `text/template` 自定义消息模板（单文件/模板目录多模板）
@@ -19,14 +19,12 @@
 ### 1) 配置
 复制示例配置：
 ```bash
-cp configs/config.example.yaml config.yaml
+cp config.example.yaml config.yaml
 ```
 
 编辑 `config.yaml`，至少配置：
 - `dingtalk.robots[0].webhook`
-- （二选一）
-  - legacy：`dingtalk.receivers.default`
-  - 推荐：`dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
+- `dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
 
 ### 2) 运行（二进制）
 ```bash
@@ -64,7 +62,7 @@ receivers:
 ## 模板
 默认模板内置在二进制中。如需自定义：
 
-1) 单文件模板（legacy）：准备模板文件（可基于 `templates/default.tmpl` 修改），配置：
+1) 单文件模板：准备模板文件（可基于 `templates/default.tmpl` 修改），配置：
 ```yaml
 template:
   file: "templates/custom.tmpl"
@@ -81,7 +79,7 @@ template:
 
 ## 路由（推荐：channels + routes）
 
-当 `dingtalk.channels` 非空时，服务优先使用 `channels + routes` 做路由；否则使用 legacy `dingtalk.receivers`（兼容旧配置，运行时会转换为等价的 channels/routes）。
+服务使用 `channels + routes` 做路由；当没有任何路由命中时，会发送到 `default` channel。
 
 ### 1) 最小可用示例
 

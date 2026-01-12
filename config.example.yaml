@@ -15,7 +15,7 @@ auth:
 template:
   # 三选一：
   # - dir: 模板目录（多模板，推荐用于 Admin UI）
-  # - file: 单模板文件（legacy）
+  # - file: 单模板文件
   # - 留空：使用内置 default 模板
   dir: ""
   file: ""
@@ -41,31 +41,31 @@ dingtalk:
       secret: ""
       # markdown / text
       msg_type: "markdown"
+      # 钉钉消息标题（markdown 消息的 title 字段）
       title: "Alertmanager"
 
-  # receiver 路由：使用 Alertmanager webhook payload 的 receiver 字段
-  receivers:
-    default: ["default"]
-    # ops-team: ["default"]
+  # channels + routes：
+  # - channels: 发送目标（绑定机器人、模板、@ 规则）
+  # - routes:   按 receiver/status/labels 匹配，决定使用哪些 channels
+  channels:
+    - name: "default" # 必须存在
+      robots: ["default"]
+      template: "default"
+      mention:
+        at_all: false
+        at_mobiles: []
+        at_user_ids: []
+      mention_rules:
+        - name: "critical->@all"
+          when:
+            labels:
+              severity: ["critical"]
+          mention:
+            at_all: true
 
-  # 推荐：channels + routes（如配置 channels，则优先使用 channels/routes 路由）
-  # channels:
-  #   - name: "default"
-  #     robots: ["default"]
-  #     template: "default"
-  #     mention:
-  #       at_all: false
-  #       at_mobiles: []
-  #       at_user_ids: []
-  #     mention_rules:
-  #       - name: "critical->@all"
-  #         when:
-  #           labels:
-  #             severity: ["critical"]
-  #         mention:
-  #           at_all: true
-  # routes:
-  #   - name: "by-receiver"
-  #     when:
-  #       receiver: ["ops-team"]
-  #     channels: ["default"]
+  # routes 允许为空（此时所有告警都走 default channel）
+  routes:
+    - name: "by-receiver"
+      when:
+        receiver: ["ops-team"]
+      channels: ["default"]
