@@ -42,7 +42,8 @@ dingtalk:
       # markdown / text
       msg_type: "markdown"
       # 钉钉消息标题（markdown 消息的 title 字段）
-      title: "Alertmanager"
+      # - 留空：默认使用 Alertmanager 的 summary（commonAnnotations.summary 或第一个 alert 的 annotations.summary）
+      title: ""
 
   # channels + routes：
   # - channels: 发送目标（绑定机器人、模板、@ 规则）
