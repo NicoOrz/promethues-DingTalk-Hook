@@ -1,4 +1,4 @@
-// 包 admin 提供受 Basic Auth 保护的管理接口与简易 Web UI。
+// Package admin provides Basic Auth protected admin APIs and a simple Web UI.
 package admin
 
 import (
@@ -310,8 +310,7 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 			cfg.DingTalk.Robots[i].Secret = ""
 		}
 
-		cfg.Template.File = pathToRelIfUnderBase(baseDir, cfg.Template.File)
-		cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
+			cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
 
 		writeJSON(w, http.StatusOK, apiResp{Code: 0, Data: map[string]any{
 			"config":    cfg,
@@ -572,15 +571,6 @@ func (h *handler) readTemplate(rt *runtime.Runtime, name string) (string, error)
 
 	if name == "default" {
 		return template.EmbeddedDefaultText(), nil
-	}
-
-	file := strings.TrimSpace(rt.Config.Template.File)
-	if file != "" && name == rt.Renderer.DefaultName() {
-		b, err := os.ReadFile(file)
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
 	}
 
 	return "", errors.New("template not found")
@@ -1014,7 +1004,7 @@ func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Man
 		}
 	}
 
-	// 先在 stagingDir 上做一次完整编译校验，避免污染线上目录。
+	// Validate by compiling everything in stagingDir first to avoid polluting the live dir.
 	cfgCopy := *cfg
 	cfgCopy.Template.Dir = stagingDir
 	if _, err := runtime.Build(logger, configPath, baseDir, &cfgCopy); err != nil {

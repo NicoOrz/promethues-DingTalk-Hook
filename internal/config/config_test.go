@@ -17,20 +17,20 @@ func TestLoad_DefaultsAndTemplatePath(t *testing.T) {
 	}
 
 	cfgPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(`
-server:
-  listen: "127.0.0.1:8080"
-template:
-  file: "templates/custom.tmpl"
-dingtalk:
-  robots:
-    - name: "default"
-      webhook: "http://example.invalid"
-      msg_type: "markdown"
-  channels:
-    - name: "default"
-      robots: ["default"]
-`), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(
+		"server:\n"+
+			"  listen: \"127.0.0.1:8080\"\n"+
+			"template:\n"+
+			"  dir: \"templates\"\n"+
+			"dingtalk:\n"+
+			"  robots:\n"+
+			"    - name: \"default\"\n"+
+			"      webhook: \"http://example.invalid\"\n"+
+			"      msg_type: \"markdown\"\n"+
+			"  channels:\n"+
+			"    - name: \"default\"\n"+
+			"      robots: [\"default\"]\n",
+	), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -45,9 +45,9 @@ dingtalk:
 		t.Fatalf("DingTalk.Timeout=%s", cfg.DingTalk.Timeout.Duration())
 	}
 
-	wantTpl := filepath.Join(dir, "templates", "custom.tmpl")
-	if cfg.Template.File != wantTpl {
-		t.Fatalf("Template.File=%q want %q", cfg.Template.File, wantTpl)
+	wantDir := filepath.Join(dir, "templates")
+	if cfg.Template.Dir != wantDir {
+		t.Fatalf("Template.Dir=%q want %q", cfg.Template.Dir, wantDir)
 	}
 }
 

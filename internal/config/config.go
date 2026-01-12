@@ -1,4 +1,4 @@
-// 包 config 提供 YAML 配置加载、默认值填充与配置校验。
+// Package config provides YAML loading, defaulting, and validation.
 package config
 
 import (
@@ -57,9 +57,7 @@ type ReloadConfig struct {
 }
 
 type TemplateConfig struct {
-	File    string `yaml:"file"`
-	Dir     string `yaml:"dir"`
-	Default string `yaml:"default"`
+	Dir string `yaml:"dir"`
 }
 
 type DingTalkConfig struct {
@@ -133,9 +131,6 @@ func Parse(data []byte, baseDir string) (*Config, error) {
 		return nil, err
 	}
 
-	if strings.TrimSpace(cfg.Template.File) != "" && !filepath.IsAbs(cfg.Template.File) {
-		cfg.Template.File = filepath.Join(baseDir, cfg.Template.File)
-	}
 	if strings.TrimSpace(cfg.Template.Dir) != "" && !filepath.IsAbs(cfg.Template.Dir) {
 		cfg.Template.Dir = filepath.Join(baseDir, cfg.Template.Dir)
 	}
@@ -169,10 +164,6 @@ func applyDefaults(cfg *Config) {
 
 	if cfg.Reload.Interval == 0 {
 		cfg.Reload.Interval = Duration(2 * time.Second)
-	}
-
-	if cfg.Template.Default == "" {
-		cfg.Template.Default = "default"
 	}
 
 	if cfg.DingTalk.Timeout == 0 {
@@ -220,10 +211,6 @@ func validate(cfg *Config) error {
 				return fmt.Errorf("admin.basic_auth.salt must be base64: %w", err)
 			}
 		}
-	}
-
-	if strings.TrimSpace(cfg.Template.File) != "" && strings.TrimSpace(cfg.Template.Dir) != "" {
-		return errors.New("template.file and template.dir are mutually exclusive")
 	}
 
 	if len(cfg.DingTalk.Robots) == 0 {

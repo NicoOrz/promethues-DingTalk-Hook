@@ -1,53 +1,68 @@
 # Prometheus DingTalk Hook
 
-一个轻量的 Go Webhook：接收 Prometheus Alertmanager Webhook（JSON），按模板渲染后转发到钉钉群机器人（支持加签、多机器人、按 receiver 路由，可选 token 鉴权）。
+A lightweight Go webhook service:
 
-## 功能
-- 接收 Alertmanager Webhook（/alert）
-- 多钉钉机器人配置
-- 路由：`channels + routes`（按 receiver/labels 匹配）
-- 支持钉钉 `@全体/@手机号`（按渠道默认规则 + 规则匹配）
-- 支持钉钉“加签”安全设置（secret）
-- 支持 Go `text/template` 自定义消息模板（单文件/模板目录多模板）
-- 健康检查：`/healthz`、`/readyz`
-- 可选 token 鉴权（Bearer / X-Token）
-- 安全热加载：轮询检测变更 + 手动 `POST /-/reload`（失败回滚）
-- 管理 UI：`/admin/`（Basic Auth），支持模板管理/预览、测试发送、配置导入导出
+- Receives Prometheus Alertmanager webhook JSON.
+- Renders a message with Go `text/template`.
+- Forwards the message to DingTalk group robots (supports signing and mentions).
 
-## 快速开始
+## Features
 
-### 1) 配置
-复制示例配置：
+- Alertmanager webhook endpoint (default: `POST /alert`)
+- Multiple DingTalk robots
+- Routing: `channels + routes` (match by receiver/status/labels)
+- Mentions: `@all` / `@mobile` / `@userId` (auto appends `@...` tokens in message body)
+- Optional token auth (`Authorization: Bearer <token>` or `X-Token: <token>`)
+- Safe hot reload (`POST /-/reload`, optional polling)
+- Optional Admin UI (`/admin/`) for managing templates and testing messages
+
+## Quick Start
+
+1) Create config:
+
 ```bash
-cp config.example.yaml config.yaml
+cp config.example.yml config.yml
 ```
 
-编辑 `config.yaml`，至少配置：
-- `dingtalk.robots[0].webhook`
-- `dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
+2) Edit `config.yml`:
 
-### 2) 运行（二进制）
+- Set `dingtalk.robots[0].webhook`.
+- Ensure `dingtalk.channels` contains a channel named `"default"` with at least one robot.
+
+3) Run:
+
 ```bash
-go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
-./prometheus-dingtalk-hook -config ./config.yaml
+go run ./cmd/prometheus-dingtalk-hook -config config.yml
 ```
 
-### 3) 运行（Docker Compose）
-在项目根目录（已包含 `docker-compose.yml`，并按上文创建好 `config.yaml`）中执行：
-```bash
-docker compose up -d
+## Template
+
+The binary ships with an embedded `default` template.
+
+To add or override templates, configure `template.dir` to a directory containing `*.tmpl`.
+
+```yaml
+template:
+  dir: "templates"
 ```
 
-### 4) 构建镜像（可选）
-Dockerfile 仅用于构建镜像（GoReleaser/本地构建）；运行推荐使用上面的 `docker compose`。
-```bash
-go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
-docker build -t prometheus-dingtalk-hook:local .
-docker run --rm -p 8080:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v "$PWD/templates:/app/templates:ro" prometheus-dingtalk-hook:local
-```
+Notes:
 
-## Alertmanager 配置示例
-在 Alertmanager 中将 webhook 指向本服务：
+- If `template.dir` is empty, the embedded default template is used.
+- If `template.dir` does not exist (e.g. not mounted in Docker), the app falls back to the embedded default template.
+- `channels[].template` selects a template by name (filename without `.tmpl`), e.g. `default` for `default.tmpl`.
+
+## Markdown Title
+
+For DingTalk `markdown` messages, `dingtalk.robots[].title` controls the `markdown.title` field.
+
+- If `title` is empty, it defaults to Alertmanager `summary`:
+  - `commonAnnotations.summary`, then
+  - the first alert's `annotations.summary`, then
+  - `alertname`, then
+  - `"Alertmanager"`.
+
+## Alertmanager Receiver Example
 
 ```yaml
 receivers:
@@ -57,109 +72,37 @@ receivers:
         send_resolved: true
 ```
 
-如果启用 token 鉴权，建议使用 `Authorization: Bearer`（Alertmanager 支持方式以实际版本为准）；也可以使用 `X-Token: <token>`。
+## Docker
 
-## 模板
-默认模板内置在二进制中。如需自定义：
+Example:
 
-1) 单文件模板：准备模板文件（可基于 `templates/default.tmpl` 修改），配置：
-```yaml
-template:
-  file: "templates/custom.tmpl"
+```bash
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.yml:/app/config.yml:ro" \
+  ghcr.io/your-org/prometheus-dingtalk-hook:latest \
+  -config /app/config.yml
 ```
 
-2) 模板目录（推荐，支持多模板/管理 UI）：
-```yaml
-template:
-  dir: "templates"
-  default: "default"
+Optional templates directory:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.yml:/app/config.yml:ro" \
+  -v "$PWD/templates:/data/templates:ro" \
+  ghcr.io/your-org/prometheus-dingtalk-hook:latest \
+  -config /app/config.yml
 ```
 
-3) 变更模板后可通过 `POST /-/reload` 或 `/admin/api/v1/reload` 生效（如启用轮询热加载则会自动生效）。
-
-## 路由（推荐：channels + routes）
-
-服务使用 `channels + routes` 做路由；当没有任何路由命中时，会发送到 `default` channel。
-
-### 1) 最小可用示例
+And in `config.yml`:
 
 ```yaml
 template:
-  dir: "templates"
-  default: "default"
-
-dingtalk:
-  robots:
-    - name: "robot-ops"
-      webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
-      secret: ""
-      msg_type: "markdown"
-      title: "Alertmanager"
-
-  channels:
-    - name: "default"      # 必须存在
-      robots: ["robot-ops"]
-      template: "default"  # 对应 templates/default.tmpl（也可使用内置 default）
-
-    - name: "ops"
-      robots: ["robot-ops"]
-      template: "ops"      # 对应 templates/ops.tmpl
-      mention_rules:
-        - name: "critical->@all"
-          when:
-            labels:
-              severity: ["critical"]
-          mention:
-            at_all: true
-
-  routes:
-    - name: "by-receiver"
-      when:
-        receiver: ["ops-team"]
-      channels: ["ops"]
-    - name: "by-severity"
-      when:
-        labels:
-          severity: ["critical"]
-      channels: ["ops"]
+  dir: "/data/templates"
 ```
 
-说明：
-- `routes` 按顺序匹配，命中后发送到对应 `channels`
-- 未命中任何 `routes` 时回落到 `default` channel
-- `when` 支持 `receiver/status/labels`（AND 语义），`labels` 的 value 列表为“命中任一即命中”
-- `channel.template` 取模板名（不含 `.tmpl`），来自 `template.dir` 目录下的 `*.tmpl`（同时内置 `default` 永远可用）
+## Admin UI (Optional)
 
-### 2) mentions（@全体/@手机号/@用户ID）
-
-```yaml
-dingtalk:
-  channels:
-    - name: "ops"
-      robots: ["robot-ops"]
-      template: "ops"
-      mention:
-        at_all: false
-        at_mobiles: ["13800138000"]
-        at_user_ids: ["user123"]
-      mention_rules:
-        - name: "critical->@all"
-          when:
-            labels:
-              severity: ["critical"]
-          mention:
-            at_all: true
-```
-
-说明：钉钉自定义机器人 `atMobiles/atUserIds` 需要配合消息内容里的 `@xxx` 才能生效，本项目会在消息末尾自动追加对应的 `@` 文本。
-
-### 3) 哪些改动支持热加载
-- 支持热加载：`auth.token`、`dingtalk.*`、`template.*`、`admin.enabled/basic_auth`、mentions/routes/channels（校验通过后原子切换，失败回滚）
-- 需要重启才能生效：`server.listen`、`server.path`、`admin.path_prefix`
-
-## 管理 UI（可选）
-
-启用 Basic Auth 后访问：`/admin/`。
+Enable:
 
 ```yaml
 admin:
@@ -170,6 +113,7 @@ admin:
     password: "change-me"
 ```
 
-## 安全提示
-- 不要在仓库或日志中泄露 `access_token`、`secret`、`auth.token`
-- 建议将配置文件权限设为仅运行用户可读
+## Security Notes
+
+- Never commit `access_token`, `secret`, or `auth.token` to a public repository.
+- Run behind internal networking or enable token auth.

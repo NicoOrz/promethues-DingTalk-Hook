@@ -1,4 +1,4 @@
-// 包 runtime 将配置编译为可用于请求处理的运行时状态。
+// Package runtime compiles config into runtime state for request handling.
 package runtime
 
 import (
@@ -118,7 +118,7 @@ func compileChannels(cfg *config.Config, robots map[string]config.RobotConfig, c
 
 		tplName := strings.TrimSpace(ch.Template)
 		if tplName == "" {
-			tplName = cfg.Template.Default
+			tplName = "default"
 		}
 		if tplName != "" && !config.ValidTemplateName(tplName) {
 			return nil, fmt.Errorf("channel %q has invalid template name %q", name, tplName)

@@ -1,4 +1,4 @@
-// 包 reload 提供配置/模板的安全热加载（校验后切换，失败回滚）。
+// Package reload provides safe hot reload for config and templates.
 package reload
 
 import (
@@ -161,16 +161,9 @@ func fingerprint(configPath string, rt *runtime.Runtime) (string, error) {
 		return "", err
 	}
 
-	var tplDir, tplFile string
+	var tplDir string
 	if rt != nil && rt.Config != nil {
 		tplDir = strings.TrimSpace(rt.Config.Template.Dir)
-		tplFile = strings.TrimSpace(rt.Config.Template.File)
-	}
-
-	if tplFile != "" {
-		if err := hashFileStat(h, tplFile); err != nil {
-			return "", err
-		}
 	}
 
 	if tplDir != "" {
@@ -198,6 +191,14 @@ func hashFileStat(h hash.Hash, path string) error {
 func hashTemplateDir(h hash.Hash, dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			_, _ = h.Write([]byte("dir:"))
+			_, _ = h.Write([]byte(dir))
+			_, _ = h.Write([]byte{0})
+			_, _ = h.Write([]byte("missing"))
+			_, _ = h.Write([]byte{0})
+			return nil
+		}
 		return fmt.Errorf("read template dir %s: %w", dir, err)
 	}
 
