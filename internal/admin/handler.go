@@ -1,4 +1,4 @@
-// 包 admin 提供受 Basic Auth 保护的管理接口与简易 Web UI。
+// Package admin provides Basic Auth protected admin APIs and a simple Web UI.
 package admin
 
 import (
@@ -181,7 +181,7 @@ func (h *handler) handleStatus(w http.ResponseWriter, r *http.Request, rt *runti
 		reloadStatus = h.reload.Status()
 	}
 	writeJSON(w, http.StatusOK, apiResp{Code: 0, Data: map[string]any{
-		"mode":      rt.Mode,
+		"mode":      "channels",
 		"loaded_at": rt.LoadedAt,
 		"reload":    reloadStatus,
 		"templates": rt.Renderer.TemplateNames(),
@@ -300,12 +300,6 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 		cfg.DingTalk.Robots = append([]config.RobotConfig(nil), parsed.DingTalk.Robots...)
 		cfg.DingTalk.Channels = append([]config.ChannelConfig(nil), parsed.DingTalk.Channels...)
 		cfg.DingTalk.Routes = append([]config.RouteConfig(nil), parsed.DingTalk.Routes...)
-		if parsed.DingTalk.Receivers != nil {
-			cfg.DingTalk.Receivers = make(map[string][]string, len(parsed.DingTalk.Receivers))
-			for k, v := range parsed.DingTalk.Receivers {
-				cfg.DingTalk.Receivers[k] = append([]string(nil), v...)
-			}
-		}
 
 		cfg.Auth.Token = ""
 		cfg.Admin.BasicAuth.Password = ""
@@ -316,8 +310,7 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 			cfg.DingTalk.Robots[i].Secret = ""
 		}
 
-		cfg.Template.File = pathToRelIfUnderBase(baseDir, cfg.Template.File)
-		cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
+			cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
 
 		writeJSON(w, http.StatusOK, apiResp{Code: 0, Data: map[string]any{
 			"config":    cfg,
@@ -578,15 +571,6 @@ func (h *handler) readTemplate(rt *runtime.Runtime, name string) (string, error)
 
 	if name == "default" {
 		return template.EmbeddedDefaultText(), nil
-	}
-
-	file := strings.TrimSpace(rt.Config.Template.File)
-	if file != "" && name == rt.Renderer.DefaultName() {
-		b, err := os.ReadFile(file)
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
 	}
 
 	return "", errors.New("template not found")
@@ -1020,7 +1004,7 @@ func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Man
 		}
 	}
 
-	// 先在 stagingDir 上做一次完整编译校验，避免污染线上目录。
+	// Validate by compiling everything in stagingDir first to avoid polluting the live dir.
 	cfgCopy := *cfg
 	cfgCopy.Template.Dir = stagingDir
 	if _, err := runtime.Build(logger, configPath, baseDir, &cfgCopy); err != nil {

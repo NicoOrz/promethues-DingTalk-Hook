@@ -26,6 +26,30 @@ type HandlerOptions struct {
 	MaxBodyBytes int64
 }
 
+func defaultMarkdownTitle(msg alertmanager.WebhookMessage) string {
+	if msg.CommonAnnotations != nil {
+		if v := strings.TrimSpace(msg.CommonAnnotations["summary"]); v != "" {
+			return v
+		}
+	}
+	if len(msg.Alerts) > 0 && msg.Alerts[0].Annotations != nil {
+		if v := strings.TrimSpace(msg.Alerts[0].Annotations["summary"]); v != "" {
+			return v
+		}
+	}
+	if msg.CommonLabels != nil {
+		if v := strings.TrimSpace(msg.CommonLabels["alertname"]); v != "" {
+			return v
+		}
+	}
+	if len(msg.Alerts) > 0 && msg.Alerts[0].Labels != nil {
+		if v := strings.TrimSpace(msg.Alerts[0].Labels["alertname"]); v != "" {
+			return v
+		}
+	}
+	return "Alertmanager"
+}
+
 func NewHandler(opts HandlerOptions) http.Handler {
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
@@ -147,20 +171,23 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 			}
 		}
 
-		for _, robot := range channel.Robots {
-			msgType := strings.TrimSpace(robot.MsgType)
-			dtMsg := dingtalk.Message{
-				MsgType: msgType,
-				Title:   robot.Title,
-				At:      at,
-			}
-			switch msgType {
-			case "markdown":
-				dtMsg.Markdown = content
-			case "text":
-				dtMsg.Text = content
-			default:
-				sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
+			for _, robot := range channel.Robots {
+				msgType := strings.TrimSpace(robot.MsgType)
+				dtMsg := dingtalk.Message{
+					MsgType: msgType,
+					Title:   strings.TrimSpace(robot.Title),
+					At:      at,
+				}
+				switch msgType {
+				case "markdown":
+					if dtMsg.Title == "" {
+						dtMsg.Title = defaultMarkdownTitle(msg)
+					}
+					dtMsg.Markdown = content
+				case "text":
+					dtMsg.Text = content
+				default:
+					sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
 				continue
 			}
 

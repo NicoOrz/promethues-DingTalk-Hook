@@ -1,4 +1,4 @@
-// 包 template 提供 Alertmanager Webhook 的模板渲染能力。
+// Package template provides template rendering for Alertmanager webhooks.
 package template
 
 import (
@@ -35,10 +35,7 @@ type RenderData struct {
 }
 
 func NewRenderer(cfg config.TemplateConfig) (*Renderer, error) {
-	defaultName := strings.TrimSpace(cfg.Default)
-	if defaultName == "" {
-		defaultName = "default"
-	}
+	defaultName := "default"
 
 	templates := make(map[string]*template.Template, 8)
 
@@ -46,20 +43,14 @@ func NewRenderer(cfg config.TemplateConfig) (*Renderer, error) {
 		return nil, err
 	}
 
-	if strings.TrimSpace(cfg.File) != "" {
-		data, err := os.ReadFile(cfg.File)
-		if err != nil {
-			return nil, fmt.Errorf("read template: %w", err)
-		}
-		if err := loadTemplateText(templates, defaultName, string(data)); err != nil {
-			return nil, err
-		}
-	}
-
 	if strings.TrimSpace(cfg.Dir) != "" {
 		entries, err := os.ReadDir(cfg.Dir)
 		if err != nil {
-			return nil, fmt.Errorf("read template dir: %w", err)
+			if errors.Is(err, os.ErrNotExist) {
+				entries = nil
+			} else {
+				return nil, fmt.Errorf("read template dir: %w", err)
+			}
 		}
 		for _, e := range entries {
 			if e.IsDir() {

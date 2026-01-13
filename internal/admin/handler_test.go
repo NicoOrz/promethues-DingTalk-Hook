@@ -64,8 +64,7 @@ func TestApplyImport_RollbackDoesNotCorruptMissingConfig(t *testing.T) {
 
 	cfg := &config.Config{
 		Template: config.TemplateConfig{
-			Default: "default",
-			Dir:     templatesDir,
+			Dir: templatesDir,
 		},
 		DingTalk: config.DingTalkConfig{
 			Timeout: config.Duration(2 * time.Second),
@@ -77,8 +76,11 @@ func TestApplyImport_RollbackDoesNotCorruptMissingConfig(t *testing.T) {
 					Title:   "Alertmanager",
 				},
 			},
-			Receivers: map[string][]string{
-				"default": {"default"},
+			Channels: []config.ChannelConfig{
+				{
+					Name:   "default",
+					Robots: []string{"default"},
+				},
 			},
 		},
 	}

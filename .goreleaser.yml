@@ -1,4 +1,5 @@
 version: 2
+project_name: prometheus-DingTalk-Hook
 
 git:
   ignore_tags:
@@ -56,8 +57,9 @@ archives:
       - README.md
       - LICENSE
       - docker-compose.yml
-      - configs/*.example.yaml
+      - config.example.yml
       - templates/*.tmpl
+      - install.sh
 
 checksum:
   name_template: 'checksums.txt'
@@ -87,8 +89,8 @@ dockers:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
       - "--label=org.opencontainers.image.description=Prometheus Alertmanager webhook receiver for DingTalk"
-      - "--label=org.opencontainers.image.url=https://github.com/nicoorz/promethues-dingtalk-hook"
-      - "--label=org.opencontainers.image.source=https://github.com/nicoorz/promethues-dingtalk-hook"
+      - "--label=org.opencontainers.image.url=https://github.com/nicoorz/prometheus-dingtalk-hook"
+      - "--label=org.opencontainers.image.source=https://github.com/nicoorz/prometheus-dingtalk-hook"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
@@ -104,8 +106,8 @@ dockers:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
       - "--label=org.opencontainers.image.description=Prometheus Alertmanager webhook receiver for DingTalk"
-      - "--label=org.opencontainers.image.url=https://github.com/nicoorz/promethues-dingtalk-hook"
-      - "--label=org.opencontainers.image.source=https://github.com/nicoorz/promethues-dingtalk-hook"
+      - "--label=org.opencontainers.image.url=https://github.com/nicoorz/prometheus-dingtalk-hook"
+      - "--label=org.opencontainers.image.source=https://github.com/nicoorz/prometheus-dingtalk-hook"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
@@ -125,7 +127,7 @@ docker_manifests:
 release:
   github:
     owner: NicoOrz
-    name: promethues-DingTalk-Hook
+    name: prometheus-DingTalk-Hook
   draft: false
   prerelease: auto
   name_template: "Release {{.Version}}"

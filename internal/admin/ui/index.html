@@ -37,23 +37,23 @@
   <body>
     <header>
       <h1>Prometheus DingTalk Hook - Admin</h1>
-      <div class="meta" id="status">加载中…</div>
+      <div class="meta" id="status">加载中...</div>
     </header>
 
     <main>
       <section>
-        <h2>配置（config.yaml）</h2>
+        <h2>配置 (config.yaml)</h2>
         <div class="row" style="margin-bottom:8px">
           <button id="btnLoadConfig">加载</button>
           <button id="btnSaveConfig">保存并重载</button>
           <button id="btnReload">仅重载</button>
           <button id="btnExport">导出</button>
           <label>
-            导入：
+            导入:
             <input type="file" id="fileImport" accept=".zip" />
           </label>
           <span style="flex:1"></span>
-          <button id="btnCfgModeForm" class="active" title="表单模式（推荐）">表单</button>
+          <button id="btnCfgModeForm" class="active" title="表单模式">表单</button>
           <button id="btnCfgModeYaml" title="高级模式：直接编辑 YAML">YAML</button>
         </div>
         <div id="configForm"></div>
@@ -62,7 +62,7 @@
       </section>
 
       <section>
-        <h2>模板（templates/*.tmpl）</h2>
+        <h2>模板 (templates/*.tmpl)</h2>
         <div class="row" style="margin-bottom:8px">
           <select id="tplSelect"></select>
           <button id="btnLoadTpl">加载</button>
@@ -70,9 +70,9 @@
         </div>
         <textarea id="tplText" spellcheck="false"></textarea>
         <details style="margin-top:10px">
-          <summary>变量库（点击插入，预览基于下方 payload）</summary>
+          <summary>变量库（点击插入；预览基于下方 payload）</summary>
           <div class="row" style="margin:8px 0">
-            <input id="varSearch" placeholder="搜索变量/片段…" style="flex:1" />
+            <input id="varSearch" placeholder="搜索变量/片段..." style="flex:1" />
             <span class="muted" id="varHint"></span>
           </div>
           <div id="varList"></div>
@@ -88,7 +88,7 @@
           <button id="btnSend">测试发送</button>
         </div>
         <div class="row" style="margin-bottom:8px">
-          <label style="flex:1">示例 payload（JSON）：</label>
+          <label style="flex:1">示例 payload (JSON):</label>
         </div>
         <textarea id="payloadText" spellcheck="false"></textarea>
         <pre id="renderOut"></pre>
@@ -318,29 +318,21 @@
         return cur;
       }
 
-      function ensureDefaultChannelAndReceiver() {
+      function ensureDefaultChannel() {
         if (!cfg?.DingTalk) return;
         const robots = cfg.DingTalk.Robots || [];
         const firstRobot = robots.find((r) => String(r?.Name || "").trim())?.Name || "";
 
-        const hasChannels = (cfg.DingTalk.Channels || []).length > 0;
-        if (hasChannels) {
-          const names = new Set((cfg.DingTalk.Channels || []).map((c) => c?.Name));
-          if (!names.has("default")) {
-            cfg.DingTalk.Channels.unshift({
-              Name: "default",
-              Robots: firstRobot ? [firstRobot] : [],
-              Template: cfg.Template?.Default || "default",
-              Mention: { AtAll: false, AtMobiles: [], AtUserIds: [] },
-              MentionRules: []
-            });
-          }
-          return;
-        }
-
-        cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-        if (!cfg.DingTalk.Receivers.default) {
-          cfg.DingTalk.Receivers.default = firstRobot ? [firstRobot] : [];
+        cfg.DingTalk.Channels = cfg.DingTalk.Channels || [];
+        const names = new Set((cfg.DingTalk.Channels || []).map((c) => c?.Name));
+        if (!names.has("default")) {
+          cfg.DingTalk.Channels.unshift({
+            Name: "default",
+            Robots: firstRobot ? [firstRobot] : [],
+            Template: "default",
+            Mention: { AtAll: false, AtMobiles: [], AtUserIds: [] },
+            MentionRules: []
+          });
         }
       }
 
@@ -361,7 +353,6 @@
         const robots = dt.Robots || [];
         const channels = dt.Channels || [];
         const routes = dt.Routes || [];
-        const receivers = dt.Receivers || {};
 
         const sens = cfgSensitive || {};
         const sensRobots = sens.robots || sens.Robots || {};
@@ -370,10 +361,8 @@
         const adminShaSet = !!(sens.admin_password_sha256_set ?? sens.AdminPasswordSHA256Set);
         const adminSaltSet = !!(sens.admin_salt_set ?? sens.AdminSaltSet);
 
-        const hasChannelsMode = channels.length > 0;
-
         const robotNames = robots.map((r) => String(r?.Name || "")).filter(Boolean);
-        const templateNameOptions = ["", ...templateNames].map((name) => `<option value="${e(name)}">${name ? e(name) : "(默认)"}</option>`).join("");
+        const templateNameOptions = ["", ...templateNames].map((name) => `<option value="${e(name)}">${name ? e(name) : "(未指定)"}</option>`).join("");
 
         const renderNameCheckboxes = (listPath, selected) => {
           return robotNames
@@ -500,26 +489,6 @@
           })
           .join("");
 
-        const receiversKeys = Object.keys(receivers || {}).sort();
-        const receiversHTML = receiversKeys
-          .map((receiver) => {
-            const selected = receivers[receiver] || [];
-            return `<div class="card">
-              <div class="row" style="margin-bottom:8px">
-                <div style="font-weight:600">receiver：${e(receiver)}</div>
-                <span style="flex:1"></span>
-                <button data-action="removeReceiver" data-receiver="${e(receiver)}">删除</button>
-              </div>
-              <div class="grid">
-                <div>
-                  <div class="muted" style="margin-bottom:6px">robots</div>
-                  <div class="row">${renderNameCheckboxes(`DingTalk.Receivers.${receiver}`, selected)}</div>
-                </div>
-              </div>
-            </div>`;
-          })
-          .join("");
-
         const channelsHTML = channels
           .map((ch, i) => {
             return `<div class="card">
@@ -589,7 +558,7 @@
         const adminAuthMode = adminShaSet ? "sha256" : "password";
 
         configForm.innerHTML = `
-          <div class="muted" style="margin-bottom:10px">表单模式会重写 config.yaml（可能丢失注释/顺序）；敏感字段默认不回显，留空表示不修改旧值。</div>
+          <div class="muted" style="margin-bottom:10px">表单模式会重写 config.yaml；注释与字段顺序会丢失。敏感字段不回显；留空表示不修改旧值。</div>
 
           <details open>
             <summary>Server</summary>
@@ -607,7 +576,7 @@
             <summary>Auth</summary>
             <div class="grid" style="margin-top:10px">
               <label>token
-                <input id="auth_token" type="password" value="${e(auth.Token)}" data-bind="Auth.Token" placeholder="${authTokenSet ? "(已设置，留空=不改)" : ""}" />
+                <input id="auth_token" type="password" value="${e(auth.Token)}" data-bind="Auth.Token" placeholder="${authTokenSet ? "已设置；留空不改" : ""}" />
                 <div class="row">
                   <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="auth_token" />显示</label>
                   <label style="flex-direction:row;align-items:center;gap:6px">
@@ -623,10 +592,8 @@
             <summary>Template</summary>
             <div class="grid" style="margin-top:10px">
               <label>dir<input value="${e(tpl.Dir)}" data-bind="Template.Dir" placeholder="templates" /></label>
-              <label>file<input value="${e(tpl.File)}" data-bind="Template.File" placeholder="templates/default.tmpl" /></label>
-              <label>default<input value="${e(tpl.Default)}" data-bind="Template.Default" placeholder="default" /></label>
             </div>
-            <div class="muted" style="margin-top:6px">注意：template.dir 与 template.file 互斥；留空则使用内置 default。</div>
+            <div class="muted" style="margin-top:6px">留空则使用内置的 default 模板。</div>
           </details>
 
           <details>
@@ -642,11 +609,11 @@
             <div class="card">
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">basic_auth</div>
-                <span class="muted">（password 与 password_sha256 互斥）</span>
+                <span class="muted">password 与 password_sha256 互斥</span>
               </div>
               <div class="grid">
                 <label>password
-                  <input id="admin_pwd" type="password" value="${e(basic.Password)}" data-bind="Admin.BasicAuth.Password" placeholder="${adminPwdSet ? "(已设置，留空=不改)" : ""}" />
+                  <input id="admin_pwd" type="password" value="${e(basic.Password)}" data-bind="Admin.BasicAuth.Password" placeholder="${adminPwdSet ? "已设置；留空不改" : ""}" />
                   <div class="row">
                     <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_pwd" />显示</label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
@@ -656,7 +623,7 @@
                   </div>
                 </label>
                 <label>password_sha256
-                  <input id="admin_sha" type="password" value="${e(basic.PasswordSHA256)}" data-bind="Admin.BasicAuth.PasswordSHA256" placeholder="${adminShaSet ? "(已设置，留空=不改)" : ""}" />
+                  <input id="admin_sha" type="password" value="${e(basic.PasswordSHA256)}" data-bind="Admin.BasicAuth.PasswordSHA256" placeholder="${adminShaSet ? "已设置；留空不改" : ""}" />
                   <div class="row">
                     <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_sha" />显示</label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
@@ -666,7 +633,7 @@
                   </div>
                 </label>
                 <label>salt (base64)
-                  <input id="admin_salt" type="password" value="${e(basic.Salt)}" data-bind="Admin.BasicAuth.Salt" placeholder="${adminSaltSet ? "(已设置，留空=不改)" : ""}" />
+                  <input id="admin_salt" type="password" value="${e(basic.Salt)}" data-bind="Admin.BasicAuth.Salt" placeholder="${adminSaltSet ? "已设置；留空不改" : ""}" />
                   <div class="row">
                     <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-toggle-pass="admin_salt" />显示</label>
                     <label style="flex-direction:row;align-items:center;gap:6px">
@@ -676,7 +643,7 @@
                   </div>
                 </label>
               </div>
-              <div class="muted">提示：切换认证方式时，建议先勾选“清空”另一种方式再填写新值。</div>
+              <div class="muted">切换认证方式时，先勾选“清空”另一种方式，再填写新值。</div>
             </div>
           </details>
 
@@ -695,10 +662,6 @@
             <summary>DingTalk</summary>
             <div class="grid" style="margin-top:10px">
               <label>timeout<input value="${e(dt.Timeout)}" data-bind="DingTalk.Timeout" placeholder="5s" /></label>
-              <label style="flex-direction:row;align-items:center;gap:6px">
-                <input type="checkbox" data-action="toggleRoutingMode" ${hasChannelsMode ? "checked" : ""} />
-                <span>使用 channels/routes（推荐）</span>
-              </label>
             </div>
 
             <div class="card">
@@ -707,34 +670,25 @@
                 <span style="flex:1"></span>
                 <button data-action="addRobot">+ robot</button>
               </div>
-              ${robotsHTML || `<div class="muted">无 robots（但后端校验要求至少 1 个）</div>`}
+              ${robotsHTML || `<div class="muted">无 robots；后端校验要求至少 1 个</div>`}
             </div>
 
-            <div class="card ${hasChannelsMode ? "hidden" : ""}">
-              <div class="row" style="margin-bottom:8px">
-                <div style="font-weight:600">receivers（legacy）</div>
-                <span style="flex:1"></span>
-                <button data-action="addReceiver">+ receiver</button>
-              </div>
-              ${receiversHTML || `<div class="muted">无 receivers（legacy 模式要求包含 default）</div>`}
-            </div>
-
-            <div class="card ${hasChannelsMode ? "" : "hidden"}">
+            <div class="card">
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">channels</div>
                 <span style="flex:1"></span>
                 <button data-action="addChannel">+ channel</button>
               </div>
-              ${channelsHTML || `<div class="muted">无 channels（channels 模式要求包含 default）</div>`}
+              ${channelsHTML || `<div class="muted">无 channels；要求包含 default</div>`}
             </div>
 
-            <div class="card ${hasChannelsMode ? "" : "hidden"}">
+            <div class="card">
               <div class="row" style="margin-bottom:8px">
                 <div style="font-weight:600">routes</div>
                 <span style="flex:1"></span>
                 <button data-action="addRoute">+ route</button>
               </div>
-              ${routesHTML || `<div class="muted">无 routes（允许为空）</div>`}
+              ${routesHTML || `<div class="muted">无 routes；允许为空</div>`}
             </div>
           </details>
         `;
@@ -764,7 +718,7 @@
           cfgSensitive = jsonRes.data?.sensitive || null;
           cfgClear = { auth_token: false, admin_password: false, admin_password_sha256: false, admin_salt: false, robots: {} };
           configText.value = yamlText || "";
-          ensureDefaultChannelAndReceiver();
+          ensureDefaultChannel();
           renderConfigForm();
         } catch (e) {
           configMsg.textContent = e.message;
@@ -966,37 +920,6 @@
             return;
           }
         }
-        if (!(t instanceof HTMLInputElement)) return;
-        if (t.dataset?.action === "toggleRoutingMode") {
-          const enable = t.checked;
-          cfg.DingTalk = cfg.DingTalk || {};
-          if (enable) {
-            cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-            cfg.DingTalk.Channels = cfg.DingTalk.Channels || [];
-            cfg.DingTalk.Routes = cfg.DingTalk.Routes || [];
-            if (cfg.DingTalk.Channels.length === 0) {
-              const robots = cfg.DingTalk.Robots || [];
-              const firstRobot = robots.find((r) => String(r?.Name || "").trim())?.Name || "";
-              cfg.DingTalk.Channels.push({
-                Name: "default",
-                Robots: firstRobot ? [firstRobot] : [],
-                Template: cfg.Template?.Default || "default",
-                Mention: { AtAll: false, AtMobiles: [], AtUserIds: [] },
-                MentionRules: []
-              });
-            }
-          } else {
-            cfg.DingTalk.Channels = [];
-            cfg.DingTalk.Routes = [];
-            cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-            if (!cfg.DingTalk.Receivers.default) {
-              const robots = cfg.DingTalk.Robots || [];
-              const firstRobot = robots.find((r) => String(r?.Name || "").trim())?.Name || "";
-              cfg.DingTalk.Receivers.default = firstRobot ? [firstRobot] : [];
-            }
-          }
-          renderConfigForm();
-        }
       });
 
       configForm.addEventListener("click", (ev) => {
@@ -1017,26 +940,6 @@
         if (act === "removeRobot") {
           const idx = Number(btn.dataset.index);
           cfg.DingTalk.Robots.splice(idx, 1);
-          renderConfigForm();
-          return;
-        }
-
-        if (act === "addReceiver") {
-          const name = prompt("receiver 名称（如 ops-team）");
-          if (!name) return;
-          cfg.DingTalk.Receivers = cfg.DingTalk.Receivers || {};
-          if (cfg.DingTalk.Receivers[name]) {
-            alert("receiver 已存在");
-            return;
-          }
-          cfg.DingTalk.Receivers[name] = [];
-          renderConfigForm();
-          return;
-        }
-        if (act === "removeReceiver") {
-          const name = btn.dataset.receiver;
-          if (!name) return;
-          delete cfg.DingTalk.Receivers[name];
           renderConfigForm();
           return;
         }
@@ -1092,7 +995,7 @@
         if (act === "addLabel") {
           const labelsPath = btn.dataset.path;
           const labels = getByPath(cfg, labelsPath) || {};
-          const key = prompt("label key（如 severity）");
+          const key = prompt("label key：severity");
           if (!key) return;
           if (labels[key]) {
             alert("label 已存在");

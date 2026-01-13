@@ -32,21 +32,18 @@ func TestBuildPayload_MarkdownAt(t *testing.T) {
 		t.Fatalf("isAtAll=%v", at["isAtAll"])
 	}
 
-	mobiles, ok := at["atMobiles"].([]any)
-	if !ok || len(mobiles) != 1 || mobiles[0] != "13800138000" {
-		t.Fatalf("atMobiles=%v", at["atMobiles"])
+	if _, ok := at["atMobiles"]; ok {
+		t.Fatalf("unexpected atMobiles=%v", at["atMobiles"])
 	}
-
-	userIds, ok := at["atUserIds"].([]any)
-	if !ok || len(userIds) != 1 || userIds[0] != "user123" {
-		t.Fatalf("atUserIds=%v", at["atUserIds"])
+	if _, ok := at["atUserIds"]; ok {
+		t.Fatalf("unexpected atUserIds=%v", at["atUserIds"])
 	}
 
 	md, ok := payload["markdown"].(map[string]any)
 	if !ok {
 		t.Fatalf("missing markdown field: %v", payload)
 	}
-	if md["text"] != "hello\n\n@all @user123 @13800138000" {
+	if md["text"] != "hello\n\n@all" {
 		t.Fatalf("markdown.text=%q", md["text"])
 	}
 }

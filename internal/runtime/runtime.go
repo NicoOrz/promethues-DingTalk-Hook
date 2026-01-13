@@ -1,11 +1,10 @@
-// 包 runtime 将配置编译为可用于请求处理的运行时状态。
+// Package runtime compiles config into runtime state for request handling.
 package runtime
 
 import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -14,13 +13,6 @@ import (
 	"prometheus-dingtalk-hook/internal/dingtalk"
 	"prometheus-dingtalk-hook/internal/router"
 	"prometheus-dingtalk-hook/internal/template"
-)
-
-type Mode string
-
-const (
-	ModeChannels Mode = "channels"
-	ModeLegacy   Mode = "legacy"
 )
 
 type Channel struct {
@@ -42,7 +34,6 @@ func (c Channel) EffectiveMention(msg alertmanager.WebhookMessage) config.Mentio
 }
 
 type Runtime struct {
-	Mode       Mode
 	ConfigPath string
 	BaseDir    string
 
@@ -84,16 +75,7 @@ func Build(logger *slog.Logger, configPath, baseDir string, cfg *config.Config) 
 	dt := dingtalk.NewClient(cfg.DingTalk.Timeout.Duration())
 	robots := cfg.DingTalk.RobotsByName()
 
-	mode := ModeChannels
-	channelsCfg := cfg.DingTalk.Channels
-	routesCfg := cfg.DingTalk.Routes
-	if len(channelsCfg) == 0 {
-		mode = ModeLegacy
-		channelsCfg, routesCfg = legacyToChannels(cfg)
-		logger.Info("使用 legacy dingtalk.receivers 配置（建议迁移到 dingtalk.channels/routes）")
-	}
-
-	channels, err := compileChannels(cfg, robots, channelsCfg)
+	channels, err := compileChannels(cfg, robots, cfg.DingTalk.Channels)
 	if err != nil {
 		return nil, err
 	}
@@ -107,14 +89,13 @@ func Build(logger *slog.Logger, configPath, baseDir string, cfg *config.Config) 
 		}
 	}
 
-	routes := router.CompileRoutes(routesCfg)
+	routes := router.CompileRoutes(cfg.DingTalk.Routes)
 
 	if _, ok := channels["default"]; !ok {
 		return nil, fmt.Errorf("default channel is required")
 	}
 
 	return &Runtime{
-		Mode:       mode,
 		ConfigPath: configPath,
 		BaseDir:    baseDir,
 		Config:     cfg,
@@ -127,34 +108,6 @@ func Build(logger *slog.Logger, configPath, baseDir string, cfg *config.Config) 
 	}, nil
 }
 
-func legacyToChannels(cfg *config.Config) ([]config.ChannelConfig, []config.RouteConfig) {
-	channels := make([]config.ChannelConfig, 0, len(cfg.DingTalk.Receivers))
-	routes := make([]config.RouteConfig, 0, len(cfg.DingTalk.Receivers))
-
-	receivers := make([]string, 0, len(cfg.DingTalk.Receivers))
-	for receiver := range cfg.DingTalk.Receivers {
-		receivers = append(receivers, receiver)
-	}
-	sort.Strings(receivers)
-
-	for _, receiver := range receivers {
-		robotNames := cfg.DingTalk.Receivers[receiver]
-		channels = append(channels, config.ChannelConfig{
-			Name:     receiver,
-			Robots:   append([]string(nil), robotNames...),
-			Template: cfg.Template.Default,
-		})
-		if receiver != "default" {
-			routes = append(routes, config.RouteConfig{
-				Name:     "legacy-receiver-" + receiver,
-				When:     config.WhenConfig{Receiver: []string{receiver}},
-				Channels: []string{receiver},
-			})
-		}
-	}
-	return channels, routes
-}
-
 func compileChannels(cfg *config.Config, robots map[string]config.RobotConfig, channelsCfg []config.ChannelConfig) (map[string]Channel, error) {
 	out := make(map[string]Channel, len(channelsCfg))
 	for _, ch := range channelsCfg {
@@ -165,7 +118,7 @@ func compileChannels(cfg *config.Config, robots map[string]config.RobotConfig, c
 
 		tplName := strings.TrimSpace(ch.Template)
 		if tplName == "" {
-			tplName = cfg.Template.Default
+			tplName = "default"
 		}
 		if tplName != "" && !config.ValidTemplateName(tplName) {
 			return nil, fmt.Errorf("channel %q has invalid template name %q", name, tplName)
@@ -198,6 +151,12 @@ func compileChannels(cfg *config.Config, robots map[string]config.RobotConfig, c
 }
 
 func normalizeMention(m config.MentionConfig) config.MentionConfig {
+	if m.AtAll {
+		m.AtMobiles = nil
+		m.AtUserIds = nil
+		return m
+	}
+
 	userIds := make([]string, 0, len(m.AtUserIds))
 	seenUserIds := make(map[string]struct{}, len(m.AtUserIds))
 	for _, v := range m.AtUserIds {

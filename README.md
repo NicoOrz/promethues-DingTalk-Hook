@@ -1,167 +1,91 @@
 # Prometheus DingTalk Hook
 
-一个轻量的 Go Webhook：接收 Prometheus Alertmanager Webhook（JSON），按模板渲染后转发到钉钉群机器人（支持加签、多机器人、按 receiver 路由，可选 token 鉴权）。
+一个轻量的 Go Webhook 服务：
+
+- 接收 Prometheus Alertmanager Webhook（JSON）
+- 使用 Go `text/template` 渲染消息
+- 转发到钉钉群机器人（支持加签与 @）
 
 ## 功能
-- 接收 Alertmanager Webhook（/alert）
+
+- Alertmanager Webhook 接收：`POST /alert`
 - 多钉钉机器人配置
-- 路由：支持 legacy `receiver` 路由，也支持 `channels + routes`（按 receiver/labels 匹配）
-- 支持钉钉 `@全体/@手机号`（按渠道默认规则 + 规则匹配）
-- 支持钉钉“加签”安全设置（secret）
-- 支持 Go `text/template` 自定义消息模板（单文件/模板目录多模板）
-- 健康检查：`/healthz`、`/readyz`
-- 可选 token 鉴权（Bearer / X-Token）
-- 安全热加载：轮询检测变更 + 手动 `POST /-/reload`（失败回滚）
-- 管理 UI：`/admin/`（Basic Auth），支持模板管理/预览、测试发送、配置导入导出
+- 路由：`channels + routes`（按 receiver/status/labels 匹配）
+- @：`@all` / `@手机号` / `@userId`（消息末尾自动追加 `@...`）
+- 可选 token 鉴权（`Authorization: Bearer <token>` 或 `X-Token: <token>`）
+- 可视化配置 UI：`/admin/`（模板管理/预览、测试发送、配置导入导出）
 
-## 快速开始
+## QuickStart
+### 一键安装
 
-### 1) 配置
-复制示例配置：
+脚本将：
+- 自动下载最新 Release
+- 二进制安装到 `/usr/local/bin/prometheus-dingtalk-hook`
+- 配置与模板安装到 `/etc/prometheus-DingTalk-Hook/`
+- 注册并启动 systemd 服务 `prometheus-dingtalk-hook.service`
+
 ```bash
-cp configs/config.example.yaml config.yaml
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | sh
 ```
 
-编辑 `config.yaml`，至少配置：
-- `dingtalk.robots[0].webhook`
-- （二选一）
-  - legacy：`dingtalk.receivers.default`
-  - 推荐：`dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
+安装指定版本（例如 `v1.2.3`）：
 
-### 2) 运行（二进制）
 ```bash
-go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
-./prometheus-dingtalk-hook -config ./config.yaml
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | VERSION=v1.2.3 sh
 ```
+### Docker 运行
 
-### 3) 运行（Docker Compose）
-在项目根目录（已包含 `docker-compose.yml`，并按上文创建好 `config.yaml`）中执行：
+基础示例：
+
 ```bash
-docker compose up -d
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.yml:/app/config.yml:ro" \
+  ghcr.io/nicoorz/prometheus-dingtalk-hook:latest \
+  -config /app/config.yml
 ```
 
-### 4) 构建镜像（可选）
-Dockerfile 仅用于构建镜像（GoReleaser/本地构建）；运行推荐使用上面的 `docker compose`。
+可选：挂载模板目录：
+
 ```bash
-go build -o prometheus-dingtalk-hook ./cmd/prometheus-dingtalk-hook
-docker build -t prometheus-dingtalk-hook:local .
-docker run --rm -p 8080:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v "$PWD/templates:/app/templates:ro" prometheus-dingtalk-hook:local
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.yml:/app/config.yml:ro" \
+  -v "$PWD/templates:/data/templates:ro" \
+  ghcr.io/nicoorz/prometheus-dingtalk-hook:latest \
+  -config /app/config.yml
 ```
 
-## Alertmanager 配置示例
-在 Alertmanager 中将 webhook 指向本服务：
-
-```yaml
-receivers:
-  - name: ops-team
-    webhook_configs:
-      - url: "http://prometheus-dingtalk-hook:8080/alert"
-        send_resolved: true
-```
-
-如果启用 token 鉴权，建议使用 `Authorization: Bearer`（Alertmanager 支持方式以实际版本为准）；也可以使用 `X-Token: <token>`。
-
-## 模板
-默认模板内置在二进制中。如需自定义：
-
-1) 单文件模板（legacy）：准备模板文件（可基于 `templates/default.tmpl` 修改），配置：
-```yaml
-template:
-  file: "templates/custom.tmpl"
-```
-
-2) 模板目录（推荐，支持多模板/管理 UI）：
-```yaml
-template:
-  dir: "templates"
-  default: "default"
-```
-
-3) 变更模板后可通过 `POST /-/reload` 或 `/admin/api/v1/reload` 生效（如启用轮询热加载则会自动生效）。
-
-## 路由（推荐：channels + routes）
-
-当 `dingtalk.channels` 非空时，服务优先使用 `channels + routes` 做路由；否则使用 legacy `dingtalk.receivers`（兼容旧配置，运行时会转换为等价的 channels/routes）。
-
-### 1) 最小可用示例
+并在 `config.yml` 中配置：
 
 ```yaml
 template:
-  dir: "templates"
-  default: "default"
-
-dingtalk:
-  robots:
-    - name: "robot-ops"
-      webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
-      secret: ""
-      msg_type: "markdown"
-      title: "Alertmanager"
-
-  channels:
-    - name: "default"      # 必须存在
-      robots: ["robot-ops"]
-      template: "default"  # 对应 templates/default.tmpl（也可使用内置 default）
-
-    - name: "ops"
-      robots: ["robot-ops"]
-      template: "ops"      # 对应 templates/ops.tmpl
-      mention_rules:
-        - name: "critical->@all"
-          when:
-            labels:
-              severity: ["critical"]
-          mention:
-            at_all: true
-
-  routes:
-    - name: "by-receiver"
-      when:
-        receiver: ["ops-team"]
-      channels: ["ops"]
-    - name: "by-severity"
-      when:
-        labels:
-          severity: ["critical"]
-      channels: ["ops"]
+  dir: "/data/templates"
 ```
 
-说明：
-- `routes` 按顺序匹配，命中后发送到对应 `channels`
-- 未命中任何 `routes` 时回落到 `default` channel
-- `when` 支持 `receiver/status/labels`（AND 语义），`labels` 的 value 列表为“命中任一即命中”
-- `channel.template` 取模板名（不含 `.tmpl`），来自 `template.dir` 目录下的 `*.tmpl`（同时内置 `default` 永远可用）
+### 二进制安装
 
-### 2) mentions（@全体/@手机号/@用户ID）
 
-```yaml
-dingtalk:
-  channels:
-    - name: "ops"
-      robots: ["robot-ops"]
-      template: "ops"
-      mention:
-        at_all: false
-        at_mobiles: ["13800138000"]
-        at_user_ids: ["user123"]
-      mention_rules:
-        - name: "critical->@all"
-          when:
-            labels:
-              severity: ["critical"]
-          mention:
-            at_all: true
+1) 克隆仓库&创建配置：
+
+```bash
+git clone https://github.com/NicoOrz/prometheus-DingTalk-Hook.git
+cp config.example.yml config.yml
 ```
 
-说明：钉钉自定义机器人 `atMobiles/atUserIds` 需要配合消息内容里的 `@xxx` 才能生效，本项目会在消息末尾自动追加对应的 `@` 文本。
+2) 编辑 `config.yml`：
 
-### 3) 哪些改动支持热加载
-- 支持热加载：`auth.token`、`dingtalk.*`、`template.*`、`admin.enabled/basic_auth`、mentions/routes/channels（校验通过后原子切换，失败回滚）
-- 需要重启才能生效：`server.listen`、`server.path`、`admin.path_prefix`
+- 设置 `dingtalk.robots[0].webhook`
+- 确保 `dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
 
-## 管理 UI（可选）
+3) 运行：
 
-启用 Basic Auth 后访问：`/admin/`。
+```bash
+go run ./cmd/prometheus-dingtalk-hook -config config.yml
+```
+
+
+## 管理 UI
+
+启用示例：
 
 ```yaml
 admin:
@@ -172,6 +96,62 @@ admin:
     password: "change-me"
 ```
 
+## 模板
+
+二进制内置 `default` 模板。
+
+自定义模板支持配置模板文件夹 `template.dir`：加载目录下的 `*.tmpl`.
+
+```yaml
+template:
+  dir: "templates"
+```
+
+行为：
+
+- `template.dir` 为空：使用内置 `default` 模板
+- `template.dir` 指向的目录不存在：回退使用内置 `default` 模板
+- `channels[].template` 填写模板名，`default` 对应 `default.tmpl`
+## Alertmanager 配置示例
+
+```yaml
+receivers:
+  - name: ops-team
+    webhook_configs:
+      - url: "http://prometheus-dingtalk-hook:8080/alert"
+        send_resolved: true
+```
+## 钉钉消息标题
+
+当机器人 `msg_type: "markdown"` 时，`dingtalk.robots[].title` 对应钉钉 `markdown.title`。
+
+`title` 为空时，`markdown.title` 取值顺序如下：
+
+- `commonAnnotations.summary`
+- `alerts[0].annotations.summary`
+- `commonLabels.alertname`
+- `alerts[0].labels.alertname`
+- `"Alertmanager"`
+
+
+
+
+
+## 卸载
+卸载，保留 `/etc/prometheus-DingTalk-Hook/`配置：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | sh -s uninstall
+```
+
+彻底卸载，删除 `/etc/prometheus-DingTalk-Hook/` 配置：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | PURGE=1 sh -s uninstall
+```
+
+
 ## 安全提示
-- 不要在仓库或日志中泄露 `access_token`、`secret`、`auth.token`
-- 建议将配置文件权限设为仅运行用户可读
+
+- 不要在公开仓库中泄露 `access_token`、`secret`、`auth.token`
+- 部署到内网或启用 token 鉴权

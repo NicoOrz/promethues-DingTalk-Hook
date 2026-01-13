@@ -19,23 +19,24 @@ func TestHandler_TokenAuth(t *testing.T) {
 	}))
 	t.Cleanup(dt.Close)
 
-	cfg := &config.Config{
-		Auth: config.AuthConfig{Token: "t"},
-		Template: config.TemplateConfig{
-			Default: "default",
-		},
-		DingTalk: config.DingTalkConfig{
-			Timeout: config.Duration(2 * time.Second),
-			Robots: []config.RobotConfig{
-				{
+		cfg := &config.Config{
+			Auth: config.AuthConfig{Token: "t"},
+			Template: config.TemplateConfig{},
+			DingTalk: config.DingTalkConfig{
+				Timeout: config.Duration(2 * time.Second),
+				Robots: []config.RobotConfig{
+					{
 					Name:    "default",
 					Webhook: dt.URL,
 					MsgType: "markdown",
 					Title:   "Alertmanager",
 				},
 			},
-			Receivers: map[string][]string{
-				"default": {"default"},
+			Channels: []config.ChannelConfig{
+				{
+					Name:   "default",
+					Robots: []string{"default"},
+				},
 			},
 		},
 	}

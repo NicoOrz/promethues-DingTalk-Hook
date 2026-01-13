@@ -161,6 +161,13 @@ func mentionTokens(content string, at *At) []string {
 		return nil
 	}
 
+	if at.IsAtAll {
+		if strings.Contains(content, "@all") {
+			return nil
+		}
+		return []string{"@all"}
+	}
+
 	out := make([]string, 0, 1+len(at.AtUserIds)+len(at.AtMobiles))
 	seen := make(map[string]struct{}, 1+len(at.AtUserIds)+len(at.AtMobiles))
 
@@ -182,9 +189,6 @@ func mentionTokens(content string, at *At) []string {
 		out = append(out, token)
 	}
 
-	if at.IsAtAll {
-		add("all")
-	}
 	for _, v := range at.AtUserIds {
 		add(v)
 	}
@@ -205,11 +209,13 @@ func addAt(payload map[string]any, at *At) {
 	atPayload := map[string]any{
 		"isAtAll": at.IsAtAll,
 	}
-	if len(at.AtMobiles) > 0 {
-		atPayload["atMobiles"] = at.AtMobiles
-	}
-	if len(at.AtUserIds) > 0 {
-		atPayload["atUserIds"] = at.AtUserIds
+	if !at.IsAtAll {
+		if len(at.AtMobiles) > 0 {
+			atPayload["atMobiles"] = at.AtMobiles
+		}
+		if len(at.AtUserIds) > 0 {
+			atPayload["atUserIds"] = at.AtUserIds
+		}
 	}
 	payload["at"] = atPayload
 }
