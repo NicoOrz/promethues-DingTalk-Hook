@@ -8,10 +8,11 @@
 ### ℹ️ 告警通知（{{ len $p.Alerts }}）
 {{ end }}
 
-{{ if eq (len $p.Alerts) 0 }}
-{{- $severity := default (default "unknown" (index $p.CommonLabels "level")) (index $p.CommonLabels "severity") -}}
-{{- $description := default "-" (index $p.CommonAnnotations "description") -}}
-{{- $summary := default "-" (index $p.CommonAnnotations "summary") -}}
+{{ if ne (len $p.Alerts) 0 }}
+{{- $a0 := index $p.Alerts 0 -}}
+{{- $severity := default (default (default (default "unknown" (index $p.CommonLabels "level")) (index $a0.Labels "level")) (index $p.CommonLabels "severity")) (index $a0.Labels "severity") -}}
+{{- $description := default (default "-" (index $p.CommonAnnotations "description")) (index $a0.Annotations "description") -}}
+{{- $summary := default (default "-" (index $p.CommonAnnotations "summary")) (index $a0.Annotations "summary") -}}
 - **严重度**: `{{ $severity }}`
 - **描述**: {{ $description }}
 - **摘要**: {{ $summary }}

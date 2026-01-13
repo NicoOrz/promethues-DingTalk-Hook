@@ -21,17 +21,17 @@
 脚本将：
 - 自动下载最新 Release
 - 二进制安装到 `/usr/local/bin/prometheus-dingtalk-hook`
-- 配置与模板安装到 `/etc/promethues-DingTalk-Hook/`
+- 配置与模板安装到 `/etc/prometheus-DingTalk-Hook/`
 - 注册并启动 systemd 服务 `prometheus-dingtalk-hook.service`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | sh
 ```
 
 安装指定版本（例如 `v1.2.3`）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/main/install.sh | VERSION=v1.2.3 sh
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | VERSION=v1.2.3 sh
 ```
 ### Docker 运行
 
@@ -40,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/ma
 ```bash
 docker run --rm -p 8080:8080 \
   -v "$PWD/config.yml:/app/config.yml:ro" \
-  ghcr.io/your-org/prometheus-dingtalk-hook:latest \
+  ghcr.io/nicoorz/prometheus-dingtalk-hook:latest \
   -config /app/config.yml
 ```
 
@@ -50,7 +50,7 @@ docker run --rm -p 8080:8080 \
 docker run --rm -p 8080:8080 \
   -v "$PWD/config.yml:/app/config.yml:ro" \
   -v "$PWD/templates:/data/templates:ro" \
-  ghcr.io/your-org/prometheus-dingtalk-hook:latest \
+  ghcr.io/nicoorz/prometheus-dingtalk-hook:latest \
   -config /app/config.yml
 ```
 
@@ -67,7 +67,7 @@ template:
 1) 克隆仓库&创建配置：
 
 ```bash
-git clone https://github.com/NicoOrz/promethues-DingTalk-Hook.git
+git clone https://github.com/NicoOrz/prometheus-DingTalk-Hook.git
 cp config.example.yml config.yml
 ```
 
@@ -138,16 +138,16 @@ receivers:
 
 
 ## 卸载
-卸载，保留 `/etc/promethues-DingTalk-Hook/`配置：
+卸载，保留 `/etc/prometheus-DingTalk-Hook/`配置：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/main/install.sh | sh -s uninstall
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | sh -s uninstall
 ```
 
-彻底卸载，删除 `/etc/promethues-DingTalk-Hook/` 配置：
+彻底卸载，删除 `/etc/prometheus-DingTalk-Hook/` 配置：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NicoOrz/promethues-DingTalk-Hook/main/install.sh | PURGE=1 sh -s uninstall
+curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | PURGE=1 sh -s uninstall
 ```
 
 

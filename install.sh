@@ -2,12 +2,12 @@
 set -eu
 
 OWNER="NicoOrz"
-REPO="promethues-DingTalk-Hook"
-PROJECT="promethues-DingTalk-Hook"
+REPO="prometheus-DingTalk-Hook"
+PROJECT="prometheus-DingTalk-Hook"
 BIN="prometheus-dingtalk-hook"
 SERVICE="prometheus-dingtalk-hook"
 
-ETC_DIR="/etc/promethues-DingTalk-Hook"
+ETC_DIR="/etc/prometheus-DingTalk-Hook"
 CFG_DST="${ETC_DIR}/config.yml"
 TPL_DST_DIR="${ETC_DIR}/templates"
 BIN_DST="${BIN_DST:-/usr/local/bin/${BIN}}"

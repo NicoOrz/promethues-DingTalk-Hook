@@ -19,7 +19,7 @@ template:
   # 模板目录：加载目录下的 "*.tmpl"。
   # 留空则使用内置 default 模板。
   # 目录不存在时，回退使用内置 default 模板。
-  dir: "/etc/promethues-DingTalk-Hook/templates"
+  dir: "/etc/prometheus-DingTalk-Hook/templates"
 
 #WebUI管理选项
 admin:
