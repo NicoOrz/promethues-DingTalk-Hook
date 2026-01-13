@@ -4,16 +4,15 @@
 
 - 接收 Prometheus Alertmanager Webhook（JSON）
 - 使用 Go `text/template` 渲染消息
-- 转发到钉钉群机器人（支持加签与 @）
+- 转发到钉钉群机器人
 
 ## 功能
 
-- Alertmanager Webhook 接收：`POST /alert`
 - 多钉钉机器人配置
-- 路由：`channels + routes`（按 receiver/status/labels 匹配）
-- @：`@all` / `@手机号` / `@userId`（消息末尾自动追加 `@...`）
-- 可选 token 鉴权（`Authorization: Bearer <token>` 或 `X-Token: <token>`）
-- 可视化配置 UI：`/admin/`（模板管理/预览、测试发送、配置导入导出）
+- 路由：按 receiver/status/labels 匹配告警发送规则
+- @：`@all` / `@手机号` / `@userId`
+- 可选 token 鉴权
+- 可视化配置 UI
 
 ## QuickStart
 ### 一键安装
@@ -35,31 +34,26 @@ curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/ma
 ```
 ### Docker 运行
 
-基础示例：
+
+1) 准备配置文件：
 
 ```bash
-docker run --rm -p 8080:8080 \
-  -v "$PWD/config.yml:/app/config.yml:ro" \
-  ghcr.io/nicoorz/prometheus-dingtalk-hook:latest \
-  -config /app/config.yml
+cp config.example.yml config.yml
 ```
 
-可选：挂载模板目录：
+配置文件需满足：
+- `server.listen` 为 `"0.0.0.0:9098"`
+- `dingtalk.robots[0].webhook` 已正确配置
+- `dingtalk.channels` 中包含 `name: "default"` 且绑定至少一个机器人
+
+2) 启动：
 
 ```bash
-docker run --rm -p 8080:8080 \
-  -v "$PWD/config.yml:/app/config.yml:ro" \
-  -v "$PWD/templates:/data/templates:ro" \
-  ghcr.io/nicoorz/prometheus-dingtalk-hook:latest \
-  -config /app/config.yml
+docker compose up -d
 ```
 
-并在 `config.yml` 中配置：
 
-```yaml
-template:
-  dir: "/data/templates"
-```
+
 
 ### 二进制安装
 
@@ -107,7 +101,7 @@ template:
   dir: "templates"
 ```
 
-行为：
+模板解析逻辑：
 
 - `template.dir` 为空：使用内置 `default` 模板
 - `template.dir` 指向的目录不存在：回退使用内置 `default` 模板
@@ -118,8 +112,9 @@ template:
 receivers:
   - name: ops-team
     webhook_configs:
-      - url: "http://prometheus-dingtalk-hook:8080/alert"
+      - url: "http://127.0.0.1:9098/alert"
         send_resolved: true
+
 ```
 ## 钉钉消息标题
 
@@ -149,9 +144,3 @@ curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/ma
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NicoOrz/prometheus-DingTalk-Hook/main/install.sh | PURGE=1 sh -s uninstall
 ```
-
-
-## 安全提示
-
-- 不要在公开仓库中泄露 `access_token`、`secret`、`auth.token`
-- 部署到内网或启用 token 鉴权

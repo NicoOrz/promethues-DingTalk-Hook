@@ -1,6 +1,6 @@
 server:
-  # HTTP 监听地址。
-  listen: "127.0.0.1:9098"
+  # HTTP 监听地址，建议仅监听本地地址。
+  listen: "0.0.0.0:9098"
   # Alertmanager Webhook 路径。
   path: "/alert"
   read_timeout: 5s

@@ -2,7 +2,7 @@ services:
   prometheus-dingtalk-hook:
     image: ghcr.io/nicoorz/prometheus-dingtalk-hook:latest
     ports:
-      - "8080:8080"
+      - "9098:9098"
     volumes:
       - ./config.yml:/etc/prometheus-DingTalk-Hook/config.yml:ro
       - ./templates:/etc/prometheus-DingTalk-Hook/templates:ro
