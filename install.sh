@@ -10,12 +10,16 @@ SERVICE="prometheus-dingtalk-hook"
 ETC_DIR="/etc/promethues-DingTalk-Hook"
 CFG_DST="${ETC_DIR}/config.yml"
 TPL_DST_DIR="${ETC_DIR}/templates"
-BIN_DST="/usr/share/bin/${BIN}"
+BIN_DST="${BIN_DST:-/usr/local/bin/${BIN}}"
+VERSION="${VERSION:-latest}"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "错误: 缺少命令 $1" >&2; exit 1; }; }
 as_root() { [ "$(id -u)" -eq 0 ] && "$@" || sudo "$@"; }
 
 uninstall() {
+  need grep
+  need awk
+
   if ! command -v systemctl >/dev/null 2>&1 || [ ! -d /run/systemd/system ]; then
     echo "错误: 当前系统不是 systemd 驱动，无法卸载 systemd 服务。" >&2
     exit 1
@@ -50,19 +54,15 @@ uninstall() {
   exit 0
 }
 
-need curl
-need tar
-need uname
-need mktemp
-need grep
-need awk
-
 cmd="${1:-install}"
 case "$cmd" in
   install) ;;
   uninstall) uninstall ;;
   *) echo "用法: $0 [install|uninstall]" >&2; exit 2 ;;
 esac
+
+need uname
+need mktemp
 
 if ! command -v systemctl >/dev/null 2>&1 || [ ! -d /run/systemd/system ]; then
   echo "错误: 当前系统不是 systemd 驱动，无法安装为 systemd 服务。" >&2
@@ -75,20 +75,34 @@ if [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
 fi
 
 arch="$(uname -m)"
-case "$arch" in
-  x86_64|amd64) arch="x86_64" ;;
-  aarch64|arm64) arch="arm64" ;;
-  *) echo "错误: 不支持的架构: $(uname -m)" >&2; exit 1 ;;
-esac
+	case "$arch" in
+	  x86_64|amd64) arch="x86_64" ;;
+	  aarch64|arm64) arch="arm64" ;;
+	  *) echo "错误: 不支持的架构: $(uname -m)" >&2; exit 1 ;;
+	esac
 
-tag="$(curl -fsSLI "https://github.com/${OWNER}/${REPO}/releases/latest" | awk 'tolower($1)=="location:"{print $2}' | tail -n 1 | tr -d '\r')"
-tag="${tag##*/tag/}"
-tag="${tag##*/}"
-[ -n "$tag" ] || { echo "错误: 无法获取最新 release 版本号" >&2; exit 1; }
+	need curl
+	need tar
 
-version="${tag#v}"
-archive="${PROJECT}_${version}_Linux_${arch}.tar.gz"
-base="https://github.com/${OWNER}/${REPO}/releases/download/${tag}"
+	if [ "$VERSION" = "latest" ]; then
+	  need awk
+
+	  tag="$(curl -fsSL "https://api.github.com/repos/${OWNER}/${REPO}/releases/latest" 2>/dev/null | awk -F'"' '/"tag_name":/ {print $4; exit}')"
+	  if [ -z "$tag" ]; then
+	    tag="$(curl -fsSLI "https://github.com/${OWNER}/${REPO}/releases/latest" | awk 'tolower($1)=="location:"{print $2}' | tail -n 1 | tr -d '\r')"
+	    tag="${tag##*/tag/}"
+	    tag="${tag##*/}"
+	  fi
+	  [ -n "$tag" ] || { echo "错误: 无法获取最新 release 版本号（可通过 VERSION=v1.2.3 指定版本）" >&2; exit 1; }
+	else
+	  tag="$VERSION"
+	fi
+
+	case "$tag" in v*) : ;; *) tag="v$tag" ;; esac
+
+	version="${tag#v}"
+	archive="${PROJECT}_${version}_Linux_${arch}.tar.gz"
+	base="https://github.com/${OWNER}/${REPO}/releases/download/${tag}"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -107,14 +121,20 @@ as_root install -m 0755 "${tmp}/${BIN}" "$BIN_DST"
 if [ ! -f "$CFG_DST" ]; then
   as_root cp "${tmp}/config.example.yml" "$CFG_DST"
   echo "已生成配置: ${CFG_DST}"
-else
-  echo "已存在配置: ${CFG_DST}"
-fi
-
-as_root cp -n "${tmp}/templates/"*.tmpl "$TPL_DST_DIR/" 2>/dev/null || true
-
-UNIT="/etc/systemd/system/${SERVICE}.service"
-as_root sh -c "cat >\"$UNIT\" <<EOF
+	else
+	  echo "已存在配置: ${CFG_DST}"
+	fi
+	
+	copied_any=0
+	for tmpl in "${tmp}/templates/"*.tmpl; do
+	  [ -f "$tmpl" ] || continue
+	  copied_any=1
+	  as_root cp -n "$tmpl" "$TPL_DST_DIR/" || echo "警告: 复制模板失败: $tmpl" >&2
+	done
+	[ "$copied_any" -eq 1 ] || echo "警告: 未找到任何 *.tmpl 模板文件" >&2
+	
+	UNIT="/etc/systemd/system/${SERVICE}.service"
+	as_root sh -c "cat >\"$UNIT\" <<EOF
 [Unit]
 Description=Prometheus DingTalk Hook
 After=network-online.target
