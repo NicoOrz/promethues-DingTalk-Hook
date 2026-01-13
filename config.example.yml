@@ -1,6 +1,6 @@
 server:
   # HTTP 监听地址。
-  listen: "0.0.0.0:8080"
+  listen: "127.0.0.1:9098"
   # Alertmanager Webhook 路径。
   path: "/alert"
   read_timeout: 5s
@@ -18,16 +18,10 @@ auth:
 template:
   # 模板目录：加载目录下的 "*.tmpl"。
   # 留空则使用内置 default 模板。
-  #
-  # 一键安装写入路径：
-  #   dir: "/etc/promethues-DingTalk-Hook/templates"
-  #
-  # Docker 示例：
-  #   dir: "/data/templates"
-  #
   # 目录不存在时，回退使用内置 default 模板。
   dir: "/etc/promethues-DingTalk-Hook/templates"
 
+#WebUI管理选项
 admin:
   enabled: false
   path_prefix: "/admin"
@@ -36,7 +30,7 @@ admin:
     password: "change-me"
 
 reload:
-  # 安全热加载（原子切换 + 失败回滚）。
+  # 热重载配置开关
   enabled: false
   interval: 2s
 
@@ -47,10 +41,10 @@ dingtalk:
       webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
       # 如果机器人启用了“加签”，填写 secret。
       secret: ""
-      # markdown / text
+      # 消息格式选择 markdown / text
       msg_type: "markdown"
       # 钉钉 markdown.title
-      # - 留空：使用 Alertmanager 的 summary。
+      # 留空则使用 Alertmanager 的 summary。
       title: ""
 
   # channels + routes：
@@ -62,6 +56,8 @@ dingtalk:
       template: "default"
       mention:
         at_all: false
+#        at_mobiles: ["13000000000"]
+#        at_user_ids: ["xxxxx"]        
         at_mobiles: []
         at_user_ids: []
       mention_rules:
@@ -74,7 +70,7 @@ dingtalk:
 
   # routes 允许为空（此时所有告警都走 default channel）。
   routes:
-    - name: "by-receiver"
-      when:
-        receiver: ["ops-team"]
-      channels: ["default"]
+    # - name: "by-receiver"
+    #   when:
+    #     receiver: ["ops-team"]
+    #   channels: ["default"]

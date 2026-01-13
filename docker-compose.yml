@@ -4,5 +4,6 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./templates:/app/templates:ro
+      - ./config.yml:/etc/promethues-DingTalk-Hook/config.yml:ro
+      - ./templates:/etc/promethues-DingTalk-Hook/templates:ro
+    command: ["-config", "/etc/promethues-DingTalk-Hook/config.yml"]
