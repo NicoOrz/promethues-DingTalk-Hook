@@ -72,46 +72,51 @@ dingtalk:
 	}
 }
 
-func TestLoad_RejectRobotWebhookInvalidScheme(t *testing.T) {
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(`
-dingtalk:
-  robots:
-    - name: "r1"
-      webhook: "ftp://example.invalid"
-      msg_type: "markdown"
-  channels:
-    - name: "default"
-      robots: ["r1"]
-`), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
+func TestLoad_RejectInvalidRobotWebhook(t *testing.T) {
+	testCases := []struct {
+		name          string
+		webhook       string
+		expectedError string
+	}{
+		{
+			name:          "invalid scheme",
+			webhook:       "ftp://example.invalid",
+			expectedError: "scheme must be http or https",
+		},
+		{
+			name:          "missing host",
+			webhook:       "https:///robot/send?access_token=xxx",
+			expectedError: "host must not be empty",
+		},
+		{
+			name:          "unparseable url",
+			webhook:       "://invalid",
+			expectedError: "must be a valid url",
+		},
 	}
-	if _, err := Load(cfgPath); err == nil {
-		t.Fatalf("expected error")
-	} else if !strings.Contains(err.Error(), "scheme must be http or https") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
 
-func TestLoad_RejectRobotWebhookMissingHost(t *testing.T) {
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(`
-dingtalk:
-  robots:
-    - name: "r1"
-      webhook: "https:///robot/send?access_token=xxx"
-      msg_type: "markdown"
-  channels:
-    - name: "default"
-      robots: ["r1"]
-`), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	if _, err := Load(cfgPath); err == nil {
-		t.Fatalf("expected error")
-	} else if !strings.Contains(err.Error(), "host must not be empty") {
-		t.Fatalf("unexpected error: %v", err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cfgPath := filepath.Join(dir, "config.yaml")
+			cfgText := "\n" +
+				"dingtalk:\n" +
+				"  robots:\n" +
+				"    - name: \"r1\"\n" +
+				"      webhook: \"" + tc.webhook + "\"\n" +
+				"      msg_type: \"markdown\"\n" +
+				"  channels:\n" +
+				"    - name: \"default\"\n" +
+				"      robots: [\"r1\"]\n"
+
+			if err := os.WriteFile(cfgPath, []byte(cfgText), 0o644); err != nil {
+				t.Fatalf("WriteFile: %v", err)
+			}
+			if _, err := Load(cfgPath); err == nil {
+				t.Fatalf("expected error")
+			} else if !strings.Contains(err.Error(), tc.expectedError) {
+				t.Fatalf("unexpected error: %v, want error containing %q", err, tc.expectedError)
+			}
+		})
 	}
 }
