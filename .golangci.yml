@@ -11,10 +11,10 @@ linters:
     - gosec
     - staticcheck
 
-  settings:
-    gosec:
-      excludes:
-        - G304
+linters-settings:
+  gosec:
+    excludes:
+      - G304
 
 issues:
   max-issues-per-linter: 0
