@@ -170,6 +170,121 @@ type robotClearSensitive struct {
 	Secret  bool `json:"secret"`
 }
 
+type adminConfigJSON struct {
+	Server   config.ServerConfig
+	Auth     adminAuthConfigJSON
+	Admin    adminAdminConfigJSON
+	Reload   config.ReloadConfig
+	Template adminTemplateConfigJSON
+	DingTalk adminDingTalkConfigJSON
+}
+
+type adminAuthConfigJSON struct {
+	Token config.Secret
+}
+
+type adminAdminConfigJSON struct {
+	Enabled    bool
+	PathPrefix string
+	BasicAuth  adminBasicAuthConfigJSON
+}
+
+type adminBasicAuthConfigJSON struct {
+	Username       string
+	Password       config.Secret
+	PasswordSHA256 config.Secret
+	Salt           config.Secret
+}
+
+type adminTemplateConfigJSON struct {
+	Dir string
+}
+
+type adminDingTalkConfigJSON struct {
+	Timeout  config.Duration
+	Robots   []adminRobotConfigJSON
+	Channels []config.ChannelConfig
+	Routes   []config.RouteConfig
+}
+
+type adminRobotConfigJSON struct {
+	Name    string
+	Webhook config.SecretURL
+	Secret  config.Secret
+	MsgType string
+	Title   string
+}
+
+func toAdminConfigJSON(cfg *config.Config, baseDir string) adminConfigJSON {
+	out := adminConfigJSON{
+		Server: cfg.Server,
+		Auth: adminAuthConfigJSON{
+			Token: config.Secret(cfg.Auth.Token),
+		},
+		Admin: adminAdminConfigJSON{
+			Enabled:    cfg.Admin.Enabled,
+			PathPrefix: cfg.Admin.PathPrefix,
+			BasicAuth: adminBasicAuthConfigJSON{
+				Username:       cfg.Admin.BasicAuth.Username,
+				Password:       config.Secret(cfg.Admin.BasicAuth.Password),
+				PasswordSHA256: config.Secret(cfg.Admin.BasicAuth.PasswordSHA256),
+				Salt:           config.Secret(cfg.Admin.BasicAuth.Salt),
+			},
+		},
+		Reload: cfg.Reload,
+		Template: adminTemplateConfigJSON{
+			Dir: pathToRelIfUnderBase(baseDir, cfg.Template.Dir),
+		},
+		DingTalk: adminDingTalkConfigJSON{
+			Timeout:  cfg.DingTalk.Timeout,
+			Robots:   make([]adminRobotConfigJSON, len(cfg.DingTalk.Robots)),
+			Channels: append([]config.ChannelConfig(nil), cfg.DingTalk.Channels...),
+			Routes:   append([]config.RouteConfig(nil), cfg.DingTalk.Routes...),
+		},
+	}
+
+	for i, r := range cfg.DingTalk.Robots {
+		out.DingTalk.Robots[i] = adminRobotConfigJSON{
+			Name:    r.Name,
+			Webhook: config.SecretURL(r.Webhook),
+			Secret:  config.Secret(r.Secret),
+			MsgType: r.MsgType,
+			Title:   r.Title,
+		}
+	}
+
+	return out
+}
+
+func scrubSecretPlaceholders(cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+
+	if cfg.Auth.Token == config.RedactedSecret {
+		cfg.Auth.Token = ""
+	}
+
+	if cfg.Admin.BasicAuth.Password == config.RedactedSecret {
+		cfg.Admin.BasicAuth.Password = ""
+	}
+	if cfg.Admin.BasicAuth.PasswordSHA256 == config.RedactedSecret {
+		cfg.Admin.BasicAuth.PasswordSHA256 = ""
+	}
+	if cfg.Admin.BasicAuth.Salt == config.RedactedSecret {
+		cfg.Admin.BasicAuth.Salt = ""
+	}
+
+	for i := range cfg.DingTalk.Robots {
+		if cfg.DingTalk.Robots[i].Webhook == config.RedactedSecret {
+			cfg.DingTalk.Robots[i].Webhook = ""
+		}
+		if cfg.DingTalk.Robots[i].Secret == config.RedactedSecret {
+			cfg.DingTalk.Robots[i].Secret = ""
+		}
+	}
+}
+
 func (h *handler) handleStatus(w http.ResponseWriter, r *http.Request, rt *runtime.Runtime) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
@@ -296,21 +411,7 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		cfg := *parsed
-		cfg.DingTalk.Robots = append([]config.RobotConfig(nil), parsed.DingTalk.Robots...)
-		cfg.DingTalk.Channels = append([]config.ChannelConfig(nil), parsed.DingTalk.Channels...)
-		cfg.DingTalk.Routes = append([]config.RouteConfig(nil), parsed.DingTalk.Routes...)
-
-		cfg.Auth.Token = ""
-		cfg.Admin.BasicAuth.Password = ""
-		cfg.Admin.BasicAuth.PasswordSHA256 = ""
-		cfg.Admin.BasicAuth.Salt = ""
-		for i := range cfg.DingTalk.Robots {
-			cfg.DingTalk.Robots[i].Webhook = ""
-			cfg.DingTalk.Robots[i].Secret = ""
-		}
-
-			cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
+		cfg := toAdminConfigJSON(parsed, baseDir)
 
 		writeJSON(w, http.StatusOK, apiResp{Code: 0, Data: map[string]any{
 			"config":    cfg,
@@ -346,6 +447,7 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 		}
 
 		merged := req.Config
+		scrubSecretPlaceholders(&merged)
 		mergeSensitiveConfig(&merged, oldCfg, req.ClearSensitive)
 
 		yamlBytes, err := yaml.Marshal(&merged)

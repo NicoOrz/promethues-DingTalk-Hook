@@ -336,23 +336,39 @@
         }
       }
 
-      function renderConfigForm() {
-        if (!cfg) {
-          configForm.innerHTML = `<div class="muted">未加载配置。</div>`;
-          return;
-        }
+       function normalizeSecretPlaceholder(v) {
+         const s = String(v ?? "");
+         return s === "<secret>" ? "" : s;
+       }
 
-        const e = escapeHtml;
-        const server = cfg.Server || {};
-        const auth = cfg.Auth || {};
-        const admin = cfg.Admin || {};
-        const basic = admin.BasicAuth || {};
-        const reload = cfg.Reload || {};
-        const tpl = cfg.Template || {};
-        const dt = cfg.DingTalk || {};
-        const robots = dt.Robots || [];
-        const channels = dt.Channels || [];
-        const routes = dt.Routes || [];
+       function renderConfigForm() {
+         if (!cfg) {
+           configForm.innerHTML = `<div class="muted">未加载配置。</div>`;
+           return;
+         }
+
+         const e = escapeHtml;
+         const server = cfg.Server || {};
+         const auth = cfg.Auth || {};
+         auth.Token = normalizeSecretPlaceholder(auth.Token);
+         const admin = cfg.Admin || {};
+         const basic = admin.BasicAuth || {};
+         basic.Password = normalizeSecretPlaceholder(basic.Password);
+         basic.PasswordSHA256 = normalizeSecretPlaceholder(basic.PasswordSHA256);
+         basic.Salt = normalizeSecretPlaceholder(basic.Salt);
+         const reload = cfg.Reload || {};
+         const tpl = cfg.Template || {};
+         const dt = cfg.DingTalk || {};
+         const robots = dt.Robots || [];
+         for (const r of robots) {
+           if (r && typeof r === "object") {
+             r.Webhook = normalizeSecretPlaceholder(r.Webhook);
+             r.Secret = normalizeSecretPlaceholder(r.Secret);
+           }
+         }
+         const channels = dt.Channels || [];
+         const routes = dt.Routes || [];
+
 
         const sens = cfgSensitive || {};
         const sensRobots = sens.robots || sens.Robots || {};
