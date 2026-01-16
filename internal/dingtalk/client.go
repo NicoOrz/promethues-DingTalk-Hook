@@ -71,7 +71,7 @@ func (c *Client) Send(ctx context.Context, webhook, secret string, msg Message) 
 	if err != nil {
 		return fmt.Errorf("post dingtalk: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var apiResp apiResponse
 	_ = json.NewDecoder(resp.Body).Decode(&apiResp)

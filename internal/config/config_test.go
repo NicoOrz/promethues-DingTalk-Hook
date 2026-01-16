@@ -9,10 +9,10 @@ import (
 
 func TestLoad_DefaultsAndTemplatePath(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "templates"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "templates"), 0o750); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "templates", "custom.tmpl"), []byte("hello"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "templates", "custom.tmpl"), []byte("hello"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -30,7 +30,7 @@ func TestLoad_DefaultsAndTemplatePath(t *testing.T) {
 			"  channels:\n"+
 			"    - name: \"default\"\n"+
 			"      robots: [\"default\"]\n",
-	), 0o644); err != nil {
+	), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -63,7 +63,7 @@ dingtalk:
   channels:
     - name: "ops"
       robots: ["r1"]
-`), 0o644); err != nil {
+`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	if _, err := Load(cfgPath); err == nil {

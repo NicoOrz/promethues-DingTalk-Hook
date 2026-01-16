@@ -310,7 +310,7 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 			cfg.DingTalk.Robots[i].Secret = ""
 		}
 
-			cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
+		cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
 
 		writeJSON(w, http.StatusOK, apiResp{Code: 0, Data: map[string]any{
 			"config":    cfg,
@@ -525,7 +525,7 @@ func (h *handler) handleTemplate(w http.ResponseWriter, r *http.Request, rt *run
 			return
 		}
 
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
 			return
 		}
@@ -534,14 +534,14 @@ func (h *handler) handleTemplate(w http.ResponseWriter, r *http.Request, rt *run
 		old, oldErr := os.ReadFile(path)
 		oldExists := oldErr == nil
 
-		if err := writeFileAtomic(path, data, 0o644); err != nil {
+		if err := writeFileAtomic(path, data, 0o600); err != nil {
 			writeJSON(w, http.StatusInternalServerError, apiResp{Code: 1, Message: err.Error()})
 			return
 		}
 
 		if err := h.reload.Reload(r.Context(), true); err != nil {
 			if oldExists {
-				_ = writeFileAtomic(path, old, 0o644)
+				_ = writeFileAtomic(path, old, 0o600)
 			} else {
 				_ = os.Remove(path)
 			}
@@ -859,7 +859,7 @@ func writeJSON(w http.ResponseWriter, status int, v apiResp) {
 
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(dir, ".tmp-*")
@@ -867,14 +867,14 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer func() { _ = os.Remove(tmpName) }()
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Close(); err != nil {
@@ -985,7 +985,7 @@ func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Man
 		_ = os.Remove(configPath)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(newTemplatesDir), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(newTemplatesDir), 0o750); err != nil {
 		return err
 	}
 
@@ -993,13 +993,13 @@ func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Man
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(stagingDir)
+	defer func() { _ = os.RemoveAll(stagingDir) }()
 
 	for name, b := range templates {
 		if err := template.ValidateText(string(b)); err != nil {
 			return fmt.Errorf("invalid template %q: %w", name, err)
 		}
-		if err := os.WriteFile(filepath.Join(stagingDir, name+".tmpl"), b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(stagingDir, name+".tmpl"), b, 0o600); err != nil {
 			return err
 		}
 	}
