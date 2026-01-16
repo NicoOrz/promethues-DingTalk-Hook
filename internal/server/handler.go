@@ -7,7 +7,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	runtimedebug "runtime/debug"
 	"strings"
+	"time"
 
 	"prometheus-dingtalk-hook/internal/alertmanager"
 	"prometheus-dingtalk-hook/internal/dingtalk"
@@ -98,7 +100,59 @@ func NewHandler(opts HandlerOptions) http.Handler {
 		handleAlert(w, r, opts)
 	}))
 
-	return mux
+	return withRequestLog(withPanicRecover(mux, opts.Logger), opts.Logger)
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status      int
+	wroteHeader bool
+	bytes       int64
+}
+
+func (w *statusRecorder) WriteHeader(code int) {
+	if w.wroteHeader {
+		return
+	}
+	w.status = code
+	w.wroteHeader = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusRecorder) Write(p []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	n, err := w.ResponseWriter.Write(p)
+	w.bytes += int64(n)
+	return n, err
+}
+
+func withRequestLog(next http.Handler, logger *slog.Logger) http.Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		sr := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(sr, r)
+		logger.Info("http request", "method", r.Method, "path", r.URL.Path, "status", sr.status, "latency", time.Since(start))
+	})
+}
+
+func withPanicRecover(next http.Handler, logger *slog.Logger) http.Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				logger.Error("panic recovered", "panic", rec, "method", r.Method, "path", r.URL.Path, "stack", string(runtimedebug.Stack()))
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
@@ -171,23 +225,23 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 			}
 		}
 
-			for _, robot := range channel.Robots {
-				msgType := strings.TrimSpace(robot.MsgType)
-				dtMsg := dingtalk.Message{
-					MsgType: msgType,
-					Title:   strings.TrimSpace(robot.Title),
-					At:      at,
+		for _, robot := range channel.Robots {
+			msgType := strings.TrimSpace(robot.MsgType)
+			dtMsg := dingtalk.Message{
+				MsgType: msgType,
+				Title:   strings.TrimSpace(robot.Title),
+				At:      at,
+			}
+			switch msgType {
+			case "markdown":
+				if dtMsg.Title == "" {
+					dtMsg.Title = defaultMarkdownTitle(msg)
 				}
-				switch msgType {
-				case "markdown":
-					if dtMsg.Title == "" {
-						dtMsg.Title = defaultMarkdownTitle(msg)
-					}
-					dtMsg.Markdown = content
-				case "text":
-					dtMsg.Text = content
-				default:
-					sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
+				dtMsg.Markdown = content
+			case "text":
+				dtMsg.Text = content
+			default:
+				sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
 				continue
 			}
 
