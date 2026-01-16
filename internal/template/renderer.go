@@ -4,13 +4,17 @@ package template
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"text/template"
+
+	"github.com/Masterminds/sprig/v3"
 
 	"prometheus-dingtalk-hook/internal/alertmanager"
 	"prometheus-dingtalk-hook/internal/config"
@@ -135,10 +139,7 @@ func (r *Renderer) Render(templateName string, payload alertmanager.WebhookMessa
 }
 
 func RenderText(tplText string, payload alertmanager.WebhookMessage) (string, error) {
-	tmpl := template.New("preview").Funcs(template.FuncMap{
-		"default": defaultString,
-		"kv":      formatKV,
-	})
+	tmpl := template.New("preview").Funcs(templateFuncMap())
 	parsed, err := tmpl.Parse(tplText)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
@@ -153,10 +154,7 @@ func RenderText(tplText string, payload alertmanager.WebhookMessage) (string, er
 }
 
 func ValidateText(tplText string) error {
-	tmpl := template.New("validate").Funcs(template.FuncMap{
-		"default": defaultString,
-		"kv":      formatKV,
-	})
+	tmpl := template.New("validate").Funcs(templateFuncMap())
 	_, err := tmpl.Parse(tplText)
 	if err != nil {
 		return fmt.Errorf("parse template: %w", err)
@@ -168,10 +166,7 @@ func loadTemplateText(dst map[string]*template.Template, name, tplText string) e
 	if strings.TrimSpace(name) == "" {
 		return errors.New("template name is empty")
 	}
-	tmpl := template.New(name).Funcs(template.FuncMap{
-		"default": defaultString,
-		"kv":      formatKV,
-	})
+	tmpl := template.New(name).Funcs(templateFuncMap())
 	parsed, err := tmpl.Parse(tplText)
 	if err != nil {
 		return fmt.Errorf("parse template %q: %w", name, err)
@@ -210,4 +205,88 @@ func formatKV(m map[string]string) string {
 		parts = append(parts, fmt.Sprintf("%s=%s", k, m[k]))
 	}
 	return strings.Join(parts, " ")
+}
+
+func templateFuncMap() template.FuncMap {
+	funcs := sprig.TxtFuncMap()
+	funcs["default"] = defaultString
+	funcs["kv"] = formatKV
+	funcs["toJson"] = toJSON
+	funcs["first"] = first
+	funcs["coalesce"] = coalesce
+	return funcs
+}
+
+func toJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Sprintf("<toJson error: %v>", err)
+	}
+	return string(b)
+}
+
+func first(v any) any {
+	if v == nil {
+		return nil
+	}
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Interface || rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return nil
+		}
+		rv = rv.Elem()
+	}
+
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		if rv.Len() == 0 {
+			return nil
+		}
+		return rv.Index(0).Interface()
+	default:
+		return nil
+	}
+}
+
+func coalesce(args ...any) any {
+	for _, arg := range args {
+		if !isEmpty(arg) {
+			return arg
+		}
+	}
+	return ""
+}
+
+func isEmpty(v any) bool {
+	if v == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Interface || rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return true
+		}
+		rv = rv.Elem()
+	}
+
+	switch rv.Kind() {
+	case reflect.String:
+		return strings.TrimSpace(rv.String()) == ""
+	case reflect.Bool:
+		return !rv.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return rv.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return rv.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return rv.Float() == 0
+	case reflect.Slice, reflect.Array, reflect.Map:
+		return rv.Len() == 0
+	case reflect.Struct:
+		zero := reflect.Zero(rv.Type())
+		return reflect.DeepEqual(rv.Interface(), zero.Interface())
+	default:
+		return false
+	}
 }
