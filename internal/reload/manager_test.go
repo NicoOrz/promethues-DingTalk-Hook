@@ -13,10 +13,10 @@ import (
 func TestReload_RollbackOnError(t *testing.T) {
 	dir := t.TempDir()
 	tplDir := filepath.Join(dir, "templates")
-	if err := os.MkdirAll(tplDir, 0o755); err != nil {
+	if err := os.MkdirAll(tplDir, 0o750); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tplDir, "default.tmpl"), []byte("hello"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tplDir, "default.tmpl"), []byte("hello"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -33,7 +33,7 @@ dingtalk:
   channels:
     - name: "default"
       robots: ["r1"]
-`), 0o644); err != nil {
+`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -49,7 +49,7 @@ dingtalk:
 	}
 
 	old := store.Load()
-	if err := os.WriteFile(cfgPath, []byte(`dingtalk: [invalid`), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(`dingtalk: [invalid`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	if err := mgr.Reload(context.Background(), true); err == nil {
@@ -66,10 +66,10 @@ dingtalk:
 func TestReload_SuccessUpdatesStore(t *testing.T) {
 	dir := t.TempDir()
 	tplDir := filepath.Join(dir, "templates")
-	if err := os.MkdirAll(tplDir, 0o755); err != nil {
+	if err := os.MkdirAll(tplDir, 0o750); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tplDir, "default.tmpl"), []byte("hello"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tplDir, "default.tmpl"), []byte("hello"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -88,7 +88,7 @@ dingtalk:
   channels:
     - name: "default"
       robots: ["r1"]
-`), 0o644); err != nil {
+`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -116,7 +116,7 @@ dingtalk:
   channels:
     - name: "default"
       robots: ["r1"]
-`), 0o644); err != nil {
+`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 

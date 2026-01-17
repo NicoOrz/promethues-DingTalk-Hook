@@ -62,11 +62,7 @@ func LoadFromFile(logger *slog.Logger, configPath string) (*Runtime, error) {
 	return rt, nil
 }
 
-func Build(logger *slog.Logger, configPath, baseDir string, cfg *config.Config) (*Runtime, error) {
-	if logger == nil {
-		logger = slog.Default()
-	}
-
+func Build(_ *slog.Logger, configPath, baseDir string, cfg *config.Config) (*Runtime, error) {
 	renderer, err := template.NewRenderer(cfg.Template)
 	if err != nil {
 		return nil, err

@@ -126,7 +126,7 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 	}
 
 	body := http.MaxBytesReader(w, r.Body, opts.MaxBodyBytes)
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 
 	data, err := io.ReadAll(body)
 	if err != nil {
@@ -171,23 +171,23 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 			}
 		}
 
-			for _, robot := range channel.Robots {
-				msgType := strings.TrimSpace(robot.MsgType)
-				dtMsg := dingtalk.Message{
-					MsgType: msgType,
-					Title:   strings.TrimSpace(robot.Title),
-					At:      at,
+		for _, robot := range channel.Robots {
+			msgType := strings.TrimSpace(robot.MsgType)
+			dtMsg := dingtalk.Message{
+				MsgType: msgType,
+				Title:   strings.TrimSpace(robot.Title),
+				At:      at,
+			}
+			switch msgType {
+			case "markdown":
+				if dtMsg.Title == "" {
+					dtMsg.Title = defaultMarkdownTitle(msg)
 				}
-				switch msgType {
-				case "markdown":
-					if dtMsg.Title == "" {
-						dtMsg.Title = defaultMarkdownTitle(msg)
-					}
-					dtMsg.Markdown = content
-				case "text":
-					dtMsg.Text = content
-				default:
-					sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
+				dtMsg.Markdown = content
+			case "text":
+				dtMsg.Text = content
+			default:
+				sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
 				continue
 			}
 

@@ -1,0 +1,21 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - gosec
+    - staticcheck
+
+  settings:
+    gosec:
+      excludes:
+        - G304
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

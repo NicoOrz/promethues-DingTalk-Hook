@@ -183,7 +183,7 @@ func hashFileStat(h hash.Hash, path string) error {
 	_, _ = h.Write([]byte("file:"))
 	_, _ = h.Write([]byte(path))
 	_, _ = h.Write([]byte{0})
-	_, _ = h.Write([]byte(fmt.Sprintf("%d:%d", st.Size(), st.ModTime().UnixNano())))
+	_, _ = fmt.Fprintf(h, "%d:%d", st.Size(), st.ModTime().UnixNano())
 	_, _ = h.Write([]byte{0})
 	return nil
 }
