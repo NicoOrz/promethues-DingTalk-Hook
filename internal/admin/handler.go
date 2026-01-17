@@ -13,8 +13,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-kit/log"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,7 +38,7 @@ import (
 var indexHTML []byte
 
 type Options struct {
-	Logger     *slog.Logger
+	Logger     log.Logger
 	ConfigPath string
 	Store      *runtime.Store
 	Reload     *reload.Manager
@@ -46,7 +46,7 @@ type Options struct {
 
 func New(opts Options) http.Handler {
 	if opts.Logger == nil {
-		opts.Logger = slog.Default()
+		opts.Logger = log.NewNopLogger()
 	}
 	return &handler{
 		logger:     opts.Logger,
@@ -57,7 +57,7 @@ func New(opts Options) http.Handler {
 }
 
 type handler struct {
-	logger     *slog.Logger
+	logger     log.Logger
 	configPath string
 	store      *runtime.Store
 	reload     *reload.Manager
@@ -310,7 +310,7 @@ func (h *handler) handleConfigJSON(w http.ResponseWriter, r *http.Request) {
 			cfg.DingTalk.Robots[i].Secret = ""
 		}
 
-			cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
+		cfg.Template.Dir = pathToRelIfUnderBase(baseDir, cfg.Template.Dir)
 
 		writeJSON(w, http.StatusOK, apiResp{Code: 0, Data: map[string]any{
 			"config":    cfg,
@@ -957,9 +957,9 @@ func parseZip(data []byte) ([]byte, map[string][]byte, error) {
 	return cfg, templates, nil
 }
 
-func applyImport(ctx context.Context, logger *slog.Logger, reloadMgr *reload.Manager, configPath string, cfg *config.Config, cfgBytes []byte, templates map[string][]byte) error {
+func applyImport(ctx context.Context, logger log.Logger, reloadMgr *reload.Manager, configPath string, cfg *config.Config, cfgBytes []byte, templates map[string][]byte) error {
 	if logger == nil {
-		logger = slog.Default()
+		logger = log.NewNopLogger()
 	}
 	if reloadMgr == nil {
 		return errors.New("reload is not configured")

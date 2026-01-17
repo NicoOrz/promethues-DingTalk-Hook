@@ -73,7 +73,7 @@ cp config.example.yml config.yml
 3) 运行：
 
 ```bash
-go run ./cmd/prometheus-dingtalk-hook -config config.yml
+go run ./cmd/prometheus-dingtalk-hook --config.file config.yml
 ```
 
 

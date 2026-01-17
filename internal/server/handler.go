@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 
 	"prometheus-dingtalk-hook/internal/alertmanager"
 	"prometheus-dingtalk-hook/internal/dingtalk"
@@ -17,7 +19,7 @@ import (
 )
 
 type HandlerOptions struct {
-	Logger       *slog.Logger
+	Logger       log.Logger
 	AlertPath    string
 	AdminPrefix  string
 	AdminHandler http.Handler
@@ -52,7 +54,7 @@ func defaultMarkdownTitle(msg alertmanager.WebhookMessage) string {
 
 func NewHandler(opts HandlerOptions) http.Handler {
 	if opts.Logger == nil {
-		opts.Logger = slog.Default()
+		opts.Logger = log.NewNopLogger()
 	}
 	mux := http.NewServeMux()
 
@@ -115,7 +117,7 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 
 	rt := opts.State.Load()
 	if rt == nil {
-		opts.Logger.Error("runtime state is nil")
+		level.Error(opts.Logger).Log("msg", "runtime state is nil")
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"code": 500, "message": "runtime not ready"})
 		return
 	}
@@ -136,7 +138,7 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 
 	var msg alertmanager.WebhookMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
-		opts.Logger.Warn("invalid payload", "err", err)
+		level.Warn(opts.Logger).Log("msg", "invalid payload", "err", err)
 		writeJSON(w, http.StatusBadRequest, map[string]any{"code": 400, "message": "invalid json"})
 		return
 	}
@@ -156,7 +158,7 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 
 		content, err := rt.Renderer.Render(channel.Template, msg)
 		if err != nil {
-			opts.Logger.Error("render failed", "channel", channel.Name, "err", err)
+			level.Error(opts.Logger).Log("msg", "render failed", "channel", channel.Name, "err", err)
 			sendErrs = append(sendErrs, err)
 			continue
 		}
@@ -171,28 +173,28 @@ func handleAlert(w http.ResponseWriter, r *http.Request, opts HandlerOptions) {
 			}
 		}
 
-			for _, robot := range channel.Robots {
-				msgType := strings.TrimSpace(robot.MsgType)
-				dtMsg := dingtalk.Message{
-					MsgType: msgType,
-					Title:   strings.TrimSpace(robot.Title),
-					At:      at,
+		for _, robot := range channel.Robots {
+			msgType := strings.TrimSpace(robot.MsgType)
+			dtMsg := dingtalk.Message{
+				MsgType: msgType,
+				Title:   strings.TrimSpace(robot.Title),
+				At:      at,
+			}
+			switch msgType {
+			case "markdown":
+				if dtMsg.Title == "" {
+					dtMsg.Title = defaultMarkdownTitle(msg)
 				}
-				switch msgType {
-				case "markdown":
-					if dtMsg.Title == "" {
-						dtMsg.Title = defaultMarkdownTitle(msg)
-					}
-					dtMsg.Markdown = content
-				case "text":
-					dtMsg.Text = content
-				default:
-					sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
+				dtMsg.Markdown = content
+			case "text":
+				dtMsg.Text = content
+			default:
+				sendErrs = append(sendErrs, errors.New("unsupported msg_type "+msgType))
 				continue
 			}
 
 			if err := rt.DingTalk.Send(r.Context(), robot.Webhook, robot.Secret, dtMsg); err != nil {
-				opts.Logger.Error("send failed", "robot", robot.Name, "receiver", msg.Receiver, "channel", channel.Name, "err", err)
+				level.Error(opts.Logger).Log("msg", "send failed", "robot", robot.Name, "receiver", msg.Receiver, "channel", channel.Name, "err", err)
 				sendErrs = append(sendErrs, err)
 			}
 		}

@@ -5,11 +5,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	"github.com/prometheus/common/promlog"
 
 	"prometheus-dingtalk-hook/internal/admin"
 	"prometheus-dingtalk-hook/internal/reload"
@@ -24,21 +28,38 @@ var (
 )
 
 func main() {
-	var configPath string
-	flag.StringVar(&configPath, "config", "config.yaml", "Path to YAML config file")
+	var (
+		showVersion      bool
+		configPath       string
+		webListenAddress string
+
+		logCfg promlog.Config
+	)
+
+	logCfg.Level = &promlog.AllowedLevel{}
+	_ = logCfg.Level.Set("info")
+	flag.Var(logCfg.Level, "log.level", "Only log messages with the given severity or above. One of: [debug, info, warn, error]")
+
+	logCfg.Format = &promlog.AllowedFormat{}
+	_ = logCfg.Format.Set("logfmt")
+	flag.Var(logCfg.Format, "log.format", "Output format of log messages. One of: [logfmt, json]")
+
+	flag.BoolVar(&showVersion, "version", false, "Print version information and exit.")
+	flag.StringVar(&configPath, "config.file", "config.yml", "Path to YAML config file")
+	flag.StringVar(&webListenAddress, "web.listen-address", "", "Address to listen on for web interface and API")
 	flag.Parse()
 
-	// 输出版本信息
-	fmt.Printf("prometheus-dingtalk-hook %s (commit: %s, built at: %s)\n", version, commit, date)
+	if showVersion {
+		fmt.Printf("prometheus-dingtalk-hook %s (commit: %s, built at: %s)\n", version, commit, date)
+		return
+	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
+	logger := promlog.New(&logCfg)
+	logger = log.With(logger, "app", "prometheus-dingtalk-hook")
 
 	rt, err := runtime.LoadFromFile(logger, configPath)
 	if err != nil {
-		logger.Error("load config failed", "err", err)
+		level.Error(logger).Log("msg", "load config failed", "err", err)
 		os.Exit(1)
 	}
 
@@ -46,7 +67,7 @@ func main() {
 
 	reloadMgr, err := reload.New(logger, configPath, store, rt.Config.Reload.Enabled, rt.Config.Reload.Interval.Duration())
 	if err != nil {
-		logger.Error("init reload failed", "err", err)
+		level.Error(logger).Log("msg", "init reload failed", "err", err)
 		os.Exit(1)
 	}
 
@@ -57,9 +78,14 @@ func main() {
 		Reload:     reloadMgr,
 	})
 
+	listenAddr := rt.Config.Server.Listen
+	if v := strings.TrimSpace(webListenAddress); v != "" {
+		listenAddr = v
+	}
+
 	srv := server.New(server.Options{
 		Logger:       logger,
-		ListenAddr:   rt.Config.Server.Listen,
+		ListenAddr:   listenAddr,
 		AlertPath:    rt.Config.Server.Path,
 		AdminPrefix:  rt.Config.Admin.PathPrefix,
 		AdminHandler: adminHandler,
@@ -83,13 +109,21 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	logger.Info("starting server", "listen", rt.Config.Server.Listen, "path", rt.Config.Server.Path)
+	level.Info(logger).Log(
+		"msg", "starting server",
+		"version", version,
+		"commit", commit,
+		"date", date,
+		"listen", listenAddr,
+		"path", rt.Config.Server.Path,
+	)
+
 	if err := srv.ListenAndServe(); err != nil {
 		if err == server.ErrServerClosed {
-			logger.Info("server closed")
+			level.Info(logger).Log("msg", "server closed")
 			return
 		}
-		logger.Error("server error", "err", err)
+		level.Error(logger).Log("msg", "server error", "err", err)
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

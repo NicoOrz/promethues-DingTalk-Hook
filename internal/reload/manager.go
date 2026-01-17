@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,11 +15,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+
 	"prometheus-dingtalk-hook/internal/runtime"
 )
 
 type Manager struct {
-	logger     *slog.Logger
+	logger     log.Logger
 	configPath string
 	store      *runtime.Store
 
@@ -39,9 +41,9 @@ type Status struct {
 	LastError   string    `json:"last_error"`
 }
 
-func New(logger *slog.Logger, configPath string, store *runtime.Store, enabled bool, interval time.Duration) (*Manager, error) {
+func New(logger log.Logger, configPath string, store *runtime.Store, enabled bool, interval time.Duration) (*Manager, error) {
 	if logger == nil {
-		logger = slog.Default()
+		logger = log.NewNopLogger()
 	}
 	if store == nil {
 		return nil, errors.New("store is nil")
@@ -132,14 +134,14 @@ func (m *Manager) Reload(ctx context.Context, force bool) error {
 	next, err := runtime.LoadFromFile(m.logger, m.configPath)
 	if err != nil {
 		m.lastError = err
-		m.logger.Error("reload failed", "err", err)
+		level.Error(m.logger).Log("msg", "reload failed", "err", err)
 		return err
 	}
 
 	nextFP, err := fingerprint(m.configPath, next)
 	if err != nil {
 		m.lastError = err
-		m.logger.Error("reload failed (fingerprint)", "err", err)
+		level.Error(m.logger).Log("msg", "reload failed (fingerprint)", "err", err)
 		return err
 	}
 
@@ -147,7 +149,7 @@ func (m *Manager) Reload(ctx context.Context, force bool) error {
 	m.lastFingerprint = nextFP
 	m.lastSuccess = time.Now()
 	m.lastError = nil
-	m.logger.Info("reload ok")
+	level.Info(m.logger).Log("msg", "reload ok")
 	return nil
 }
 

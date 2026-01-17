@@ -6,4 +6,4 @@ services:
     volumes:
       - ./config.yml:/etc/prometheus-DingTalk-Hook/config.yml:ro
       - ./templates:/etc/prometheus-DingTalk-Hook/templates:ro
-    command: ["-config", "/etc/prometheus-DingTalk-Hook/config.yml"]
+    command: ["--config.file", "/etc/prometheus-DingTalk-Hook/config.yml"]

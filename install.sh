@@ -142,7 +142,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${BIN_DST} -config ${CFG_DST}
+ExecStart=${BIN_DST} --config.file ${CFG_DST}
 Restart=on-failure
 RestartSec=2s
 

@@ -3,10 +3,11 @@ package runtime
 
 import (
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/go-kit/log"
 
 	"prometheus-dingtalk-hook/internal/alertmanager"
 	"prometheus-dingtalk-hook/internal/config"
@@ -48,7 +49,7 @@ type Runtime struct {
 	LoadedAt time.Time
 }
 
-func LoadFromFile(logger *slog.Logger, configPath string) (*Runtime, error) {
+func LoadFromFile(logger log.Logger, configPath string) (*Runtime, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err
@@ -62,9 +63,9 @@ func LoadFromFile(logger *slog.Logger, configPath string) (*Runtime, error) {
 	return rt, nil
 }
 
-func Build(logger *slog.Logger, configPath, baseDir string, cfg *config.Config) (*Runtime, error) {
+func Build(logger log.Logger, configPath, baseDir string, cfg *config.Config) (*Runtime, error) {
 	if logger == nil {
-		logger = slog.Default()
+		logger = log.NewNopLogger()
 	}
 
 	renderer, err := template.NewRenderer(cfg.Template)

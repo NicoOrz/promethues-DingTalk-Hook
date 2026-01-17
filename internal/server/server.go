@@ -4,9 +4,10 @@ package server
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/go-kit/log"
 
 	"prometheus-dingtalk-hook/internal/reload"
 	"prometheus-dingtalk-hook/internal/runtime"
@@ -15,7 +16,7 @@ import (
 var ErrServerClosed = http.ErrServerClosed
 
 type Options struct {
-	Logger       *slog.Logger
+	Logger       log.Logger
 	ListenAddr   string
 	AlertPath    string
 	AdminPrefix  string
@@ -29,13 +30,13 @@ type Options struct {
 }
 
 type Server struct {
-	logger *slog.Logger
+	logger log.Logger
 	srv    *http.Server
 }
 
 func New(opts Options) *Server {
 	if opts.Logger == nil {
-		opts.Logger = slog.Default()
+		opts.Logger = log.NewNopLogger()
 	}
 
 	handler := NewHandler(HandlerOptions{
