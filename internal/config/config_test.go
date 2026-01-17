@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,5 +69,54 @@ dingtalk:
 	}
 	if _, err := Load(cfgPath); err == nil {
 		t.Fatalf("expected error")
+	}
+}
+
+func TestLoad_RejectInvalidRobotWebhook(t *testing.T) {
+	testCases := []struct {
+		name          string
+		webhook       string
+		expectedError string
+	}{
+		{
+			name:          "invalid scheme",
+			webhook:       "ftp://example.invalid",
+			expectedError: "scheme must be http or https",
+		},
+		{
+			name:          "missing host",
+			webhook:       "https:///robot/send?access_token=xxx",
+			expectedError: "host must not be empty",
+		},
+		{
+			name:          "unparseable url",
+			webhook:       "://invalid",
+			expectedError: "must be a valid url",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cfgPath := filepath.Join(dir, "config.yaml")
+			cfgText := "\n" +
+				"dingtalk:\n" +
+				"  robots:\n" +
+				"    - name: \"r1\"\n" +
+				"      webhook: \"" + tc.webhook + "\"\n" +
+				"      msg_type: \"markdown\"\n" +
+				"  channels:\n" +
+				"    - name: \"default\"\n" +
+				"      robots: [\"r1\"]\n"
+
+			if err := os.WriteFile(cfgPath, []byte(cfgText), 0o644); err != nil {
+				t.Fatalf("WriteFile: %v", err)
+			}
+			if _, err := Load(cfgPath); err == nil {
+				t.Fatalf("expected error")
+			} else if !strings.Contains(err.Error(), tc.expectedError) {
+				t.Fatalf("unexpected error: %v, want error containing %q", err, tc.expectedError)
+			}
+		})
 	}
 }

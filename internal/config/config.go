@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +16,20 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+func validateRobotWebhookURL(robotName, webhook string) error {
+	parsed, err := url.Parse(webhook)
+	if err != nil {
+		return fmt.Errorf("dingtalk.robots[%s].webhook must be a valid url: %w", robotName, err)
+	}
+	if strings.TrimSpace(parsed.Host) == "" {
+		return fmt.Errorf("dingtalk.robots[%s].webhook host must not be empty", robotName)
+	}
+	if scheme := strings.ToLower(parsed.Scheme); scheme != "http" && scheme != "https" {
+		return fmt.Errorf("dingtalk.robots[%s].webhook scheme must be http or https", robotName)
+	}
+	return nil
+}
 
 type Config struct {
 	Server   ServerConfig   `yaml:"server"`
@@ -229,6 +244,9 @@ func validate(cfg *Config) error {
 		webhook := strings.TrimSpace(robot.Webhook)
 		if webhook == "" {
 			return fmt.Errorf("dingtalk.robots[%s].webhook must not be empty", name)
+		}
+		if err := validateRobotWebhookURL(name, webhook); err != nil {
+			return err
 		}
 		msgType := strings.TrimSpace(robot.MsgType)
 		if msgType != "markdown" && msgType != "text" {
